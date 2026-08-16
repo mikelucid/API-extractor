@@ -19,7 +19,12 @@ describe("self-prompt rehearsal", () => {
 
   it("idle rehearsal passes curated allow/deny expectations", async () => {
     const root = mkdtempSync(join(tmpdir(), "rootv2-rehearse-"));
-    const report = await runIdleRehearsal({ rootDir: root, count: 4, withThink: false });
+    const report = await runIdleRehearsal({
+      rootDir: root,
+      count: 4,
+      withThink: false,
+      paceMs: 0,
+    });
     expect(report.failed).toBe(0);
     expect(report.passed).toBeGreaterThan(0);
     expect(report.lines.join("\n")).toMatch(/institutional rehearsal/);

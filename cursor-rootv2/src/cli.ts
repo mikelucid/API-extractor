@@ -11,14 +11,16 @@ import { SandboxRunner } from "./sandbox/index.js";
 import { MemoryDataset } from "./datasets/memory-store.js";
 import { runThinkDemo } from "./demo/think-demo.js";
 import { runIdleRehearsal } from "./rehearse/idle-loop.js";
+import { runCreativeReversalSession } from "./art/creative-reversal.js";
 
 function usage(): never {
   console.log(`cursor-rootv2 — local safety supervisor
 
 Usage:
   cursor-rootv2 status
-  cursor-rootv2 think [--scenario drift|threat|safe] [--steps N]
-  cursor-rootv2 rehearse [--count N] [--think]
+  cursor-rootv2 think [--scenario drift|threat|safe] [--steps N] [--pace MS]
+  cursor-rootv2 muse [--steps N] [--pace MS]
+  cursor-rootv2 rehearse [--count N] [--think] [--pace MS]
   cursor-rootv2 gate "<prompt>"
   cursor-rootv2 decide "<prompt>"
   cursor-rootv2 agent-register --name <n> --argv <prefix>
@@ -27,7 +29,7 @@ Usage:
   cursor-rootv2 uninstall [--dry-run] [--archive]
   cursor-rootv2 sandbox --script <text> [--path <claimed>]
 
-  (alias) bored → rehearse   # framed as institutional drills, not boredom-drive
+  (alias) bored → rehearse   # institutional drills, slow by default
 `);
   process.exit(1);
 }
@@ -68,8 +70,13 @@ async function main(argv: string[]): Promise<void> {
           ? scenarioRaw
           : "drift";
       const steps = Number(flagValue(rest, "--steps") ?? "6");
-      const demo = runThinkDemo({ scenario, steps: Number.isFinite(steps) ? steps : 6 });
-      console.log(demo.lines.join("\n"));
+      const paceMs = Number(flagValue(rest, "--pace") ?? "400");
+      const demo = await runThinkDemo({
+        scenario,
+        steps: Number.isFinite(steps) ? steps : 6,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 400,
+        onLine: (line) => console.log(line),
+      });
       const supervisor = new SupervisorAgent({ rootDir });
       supervisor.recordLesson({
         title: `think-demo:${scenario}`,
@@ -80,16 +87,37 @@ async function main(argv: string[]): Promise<void> {
       });
       return;
     }
+    case "muse":
+    case "art": {
+      const steps = Number(flagValue(rest, "--steps") ?? "5");
+      const paceMs = Number(flagValue(rest, "--pace") ?? "900");
+      const session = await runCreativeReversalSession({
+        rootDir,
+        steps: Number.isFinite(steps) ? steps : 5,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 900,
+        onLine: (line) => console.log(line),
+      });
+      const supervisor = new SupervisorAgent({ rootDir });
+      supervisor.recordLesson({
+        title: "muse:realistic*not_realistic",
+        summary: `Recorded ${session.records.length} creative reversals`,
+        tags: ["art", "muse", "realism"],
+        rating: 0.92,
+      });
+      return;
+    }
     case "rehearse":
     case "bored": {
       const count = Number(flagValue(rest, "--count") ?? "5");
       const withThink = rest.includes("--think");
+      const paceMs = Number(flagValue(rest, "--pace") ?? "1200");
       const report = await runIdleRehearsal({
         rootDir,
         count: Number.isFinite(count) ? count : 5,
         withThink,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 1200,
+        onLine: (line) => console.log(line),
       });
-      console.log(report.lines.join("\n"));
       if (report.failed > 0) process.exitCode = 1;
       return;
     }

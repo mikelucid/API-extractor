@@ -1,37 +1,45 @@
+/**
+ * A small live demo: watch the supervisor *think* with equations + a raster.
+ * Optional paceMs slows each step for deliberate viewing.
+ */
 import {
   GridLiveRasterizer,
   MathematicalThinkingAI,
   bootstrapNeuralRatioPredictor,
 } from "../decision/index.js";
 
-/**
- * A small live demo: watch the supervisor *think* with equations + a raster.
- * This is the joyful surface for Mathematical Thinking AI.
- */
-export function runThinkDemo(options: {
+export async function runThinkDemo(options: {
   scenario?: "threat" | "safe" | "drift";
   steps?: number;
-}): {
+  paceMs?: number;
+  onLine?: (line: string) => void;
+}): Promise<{
   lines: string[];
   finalAction: string;
   finalRatio: number;
-} {
+}> {
   const scenario = options.scenario ?? "drift";
   const steps = options.steps ?? 8;
+  const paceMs = options.paceMs ?? 0;
   const math = new MathematicalThinkingAI();
   const { predictor, raster: nnRaster } = bootstrapNeuralRatioPredictor(8, 24);
   const viz = new GridLiveRasterizer({ xBins: 8, yBins: 8 });
 
-  const lines: string[] = [
-    "cursor-rootv2 · mathematical thinking demo",
-    "equations: m:=m+a·Δt · R:=P_threat(m)/P_safe(m) · E[R] over horizon",
-    "",
-  ];
+  const lines: string[] = [];
+  const emit = (line: string) => {
+    lines.push(line);
+    options.onLine?.(line);
+  };
+
+  emit("cursor-rootv2 · mathematical thinking demo");
+  emit("equations: m:=m+a·Δt · R:=P_threat(m)/P_safe(m) · E[R] over horizon");
+  emit("");
 
   let finalAction = "hold";
   let finalRatio = 0;
 
   for (let step = 0; step < steps; step++) {
+    if (paceMs > 0) await sleep(paceMs);
     const t = step / Math.max(1, steps - 1);
     if (scenario === "safe") {
       math.ingestTelemetry("safe", 0.7);
@@ -40,7 +48,6 @@ export function runThinkDemo(options: {
       math.ingestTelemetry("threat", 0.95);
       seedCluster(viz, nnRaster, 78, 78, 12);
     } else {
-      // Drift from safe → threat (the story the PDF told)
       const cx = 25 + t * 55;
       const cy = 25 + t * 55;
       for (let i = 0; i < 10; i++) {
@@ -57,21 +64,21 @@ export function runThinkDemo(options: {
     finalAction = decision.best.action.id;
     finalRatio = decision.currentRatio;
 
-    lines.push(`── step ${step + 1}/${steps} (${scenario}) ──`);
-    lines.push(renderAsciiGrid(viz.getFeatures(), 8));
-    lines.push(
+    emit(`── step ${step + 1}/${steps} (${scenario}) ──`);
+    emit(renderAsciiGrid(viz.getFeatures(), 8));
+    emit(
       `centroid (${decision.current.meanX.toFixed(1)}, ${decision.current.meanY.toFixed(1)})  ` +
         `R_math=${decision.currentRatio.toFixed(3)}  R_nn=${nn.probRatio.toFixed(3)}  ` +
         `→ ${decision.best.action.id}`,
     );
     for (const stepLine of decision.best.steps) {
-      lines.push(`  ${stepLine.equation}`);
+      emit(`  ${stepLine.equation}`);
     }
-    lines.push("");
+    emit("");
   }
 
-  lines.push(`decision: ${finalAction}  (final R=${finalRatio.toFixed(3)})`);
-  lines.push("happy: explicit math + live raster + neural ratio, all local.");
+  emit(`decision: ${finalAction}  (final R=${finalRatio.toFixed(3)})`);
+  emit("happy: explicit math + live raster + neural ratio, all local.");
   return { lines, finalAction, finalRatio };
 }
 
@@ -107,4 +114,8 @@ export function renderAsciiGrid(features: number[], bins: number): string {
     rows.push(row);
   }
   return rows.join("\n");
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
