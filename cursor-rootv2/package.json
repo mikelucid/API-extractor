@@ -1,0 +1,23 @@
+{
+  "name": "cursor-rootv2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "User-space local safety supervisor for the owner's Mac (constitutional, allowlisted, auditable).",
+  "bin": {
+    "cursor-rootv2": "./bin/cursor-rootv2.js"
+  },
+  "scripts": {
+    "test": "tsx --test tests/**/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "cli": "tsx src/cli-entry.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "tsx": "^4.20.5",
+    "typescript": "~5.9.2"
+  }
+}
