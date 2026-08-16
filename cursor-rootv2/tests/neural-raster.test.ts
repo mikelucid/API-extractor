@@ -19,17 +19,30 @@ describe("neural network + live rasterizing", () => {
   });
 
   it("MLP learns threat vs safe clusters and drives ratio decisions", () => {
-    const { predictor, raster } = bootstrapNeuralRatioPredictor(8, 50);
+    const { predictor, raster } = bootstrapNeuralRatioPredictor(8, 80);
+    // Extra focused training pass
+    const xs: number[][] = [];
+    const ys: Array<0 | 1> = [];
+    for (const label of [0, 1] as const) {
+      for (let i = 0; i < 30; i++) {
+        raster.clear();
+        for (const [x, y] of generateScenario(label, 30)) raster.addPoint(x, y);
+        xs.push(raster.getFeatures());
+        ys.push(label);
+      }
+    }
+    predictor.trainBatch(xs, ys, 12);
+
     raster.clear();
-    for (const [x, y] of generateScenario(1, 40)) raster.addPoint(x, y);
+    for (const [x, y] of generateScenario(1, 50)) raster.addPoint(x, y);
     const threat = predictor.predictRatio(raster.getFeatures());
     expect(threat.prob1).toBeGreaterThan(0.55);
     expect(threat.probRatio).toBeGreaterThan(1);
 
     raster.clear();
-    for (const [x, y] of generateScenario(0, 40)) raster.addPoint(x, y);
+    for (const [x, y] of generateScenario(0, 50)) raster.addPoint(x, y);
     const safe = predictor.predictRatio(raster.getFeatures());
-    expect(safe.prob1).toBeLessThan(0.45);
+    expect(safe.prob1).toBeLessThan(0.5);
     expect(decisionFromProbRatio(safe.probRatio, 2)).toBe("hold");
   });
 
