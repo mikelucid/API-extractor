@@ -2,6 +2,7 @@
 title: Cursor Rootv2 Safe Local Supervisor - Plan
 type: feat
 date: 2026-08-15
+deepened: 2026-08-16
 artifact_contract: ce-unified-plan/v1
 artifact_readiness: implementation-ready
 product_contract_source: ce-plan-bootstrap
@@ -12,262 +13,236 @@ execution: code
 
 ## Goal Capsule
 
-- **Objective:** Ship a user-space macOS app (`cursor-rootv2/`) that installs on the owner's MacBook, runs a mature constitutional local supervisor, watches allowlisted local agents/scripts, and on confirmed problems diagnoses and contains them — with friend-gated private identity and human-readable owner audits.
-- **Authority:** This plan > product conversation constraints (no rootkits, no silent stranger ID, no crime/hacking aid) > existing CertForge app (untouched).
-- **Stop conditions:** Do not implement root/kernel persistence, OS embedding, covert people-ID, hidden/non-owner-readable identity dumps, outbound hacking, or fraud tooling.
-- **Execution profile:** Greenfield package beside CertForge; macOS-first; local-only by default.
-- **Tail ownership:** Implementer owns `cursor-rootv2/**` only; leave CertForge `src/**` unchanged unless a tiny monorepo root note is required.
+- **Objective:** Ship v1 of `cursor-rootv2/` — a user-space Node/TypeScript supervisor CLI+daemon for the owner's MacBook that applies a mature constitution, watches allowlisted local sessions, contains confirmed rogue behavior, rehearses scripts in a path jail, and keeps friend-gated local identity with owner-readable audits.
+- **Authority:** This plan > product conversation constraints (no rootkits, no silent stranger ID, no crime/hacking aid) > CertForge app (untouched).
+- **Stop conditions:** No root/kernel persistence, OS embedding, covert people-ID, internet dossier scraping, LLM cloud dependency for policy, or GUI shells in v1.
+- **Execution profile:** Greenfield package; Linux-testable core; darwin install scripts dry-runnable everywhere.
+- **Tail ownership:** `cursor-rootv2/**` only.
 
 ## Product Contract
 
 ### Summary
 
-Cursor Rootv2 is a **local safety supervisor** for the owner's Mac. It behaves like a long-tenured operator (decades of institutional judgment), not a young or obstinate agent: no boredom drive, no refusal-to-act theatre. When it observes a confirmed problem in an allowlisted local agent or script, it diagnoses and contains that session. It speaks only to allowlisted local programs. Identity among enrolled people is private and friends-only. The owner always gets a human-readable audit of what the supervisor saw and did.
+Cursor Rootv2 v1 is a **local safety supervisor** (CLI + long-running daemon). It acts like a long-tenured operator: no boredom drive, no obstinance passivity. Rule-based constitution fails closed before side effects. When an allowlisted session trips a v1 detector, it diagnoses and contains. Friend-gated identity is local and consent-based. The owner gets a human-readable audit of supervisor actions.
 
 ### Problem Frame
 
-People want a trustworthy on-device AI that protects *their* machine and *their* agent sessions without becoming malware, spyware, or a silent identity oracle. The harmful framing (root disappearance, covert ID, anti-forensic logs) is rejected; the durable need is contained local supervision with clear contracts.
+Owners need on-device containment for *their* agent sessions without malware, spyware, or a silent identity oracle. v1 delivers the safe core; spectacle features (OS fusion, silent ID) stay rejected.
 
 ### Actors
 
-- A1. **Owner** — MacBook user who installs and configures Rootv2.
-- A2. **Supervisor** — local Rootv2 daemon + policy brain.
-- A3. **Watched agent/script** — allowlisted local process under supervision.
-- A4. **Enrolled contact** — person who opted into the private identity vault; visible only under friend ACL.
+- A1. **Owner** — installs and configures Rootv2.
+- A2. **Supervisor** — daemon + CLI policy brain.
+- A3. **Watched agent/script** — allowlisted local child/session.
+- A4. **Enrolled contact** — opt-in local identity; friends-only read.
 
 ### Requirements
 
 #### Persona and constitution
 
-- R1. The supervisor persona is mature/institutional (treated as long-tenured, ~50+ years equivalent), with no boredom-motivation or young-obstinance behavioral modes.
-- R2. A required constitution blocks assisting hacking of other people's computers, fraud, and other crimes; blocked intents fail closed with an owner-visible reason.
-- R3. On confirmed local problems in watched sessions, the supervisor must act (diagnose → contain); persona rules must not authorize passivity.
+- R1. Mature/institutional persona preamble; boredom and young-obstinance flags are invalid config and rejected at load.
+- R2. Constitution blocks assisting hacking of others' computers, fraud, and related crime patterns; denials are structured and owner-visible; **v1 is rule/keyword+pattern based (no cloud LLM required)**.
+- R3. On confirmed detector hits in watched sessions, supervisor must contain; persona cannot authorize inaction.
 
 #### Observe → contain
 
-- R4. Owner configures an allowlist of local programs/scripts the supervisor may watch or talk to.
-- R5. Supervisor monitors only allowlisted sessions for rogue patterns (policy breach, runaway tools, disallowed outbound attempts, sandbox escape attempts).
-- R6. On confirmed match, supervisor isolates or stops that session and records diagnosis.
-- R7. Supervisor does not communicate with network peers or local processes outside the allowlist except for owner-initiated updates the owner explicitly enables.
+- R4. Owner manages an allowlist of local program/script identities (argv prefix and/or absolute path).
+- R5. Supervisor watches only allowlisted supervised children. **v1 detector pack (fixed):** `disallowed_host`, `runaway_children`, `blocked_path_touch`. Extensible interface exists; extra rules are post-v1.
+- R6. On hit at/above confidence threshold (default `0.8`), isolate/stop the session and record diagnosis.
+- R7. Default-deny local IPC: only Unix socket under the data dir and allowlisted subprocess argv prefixes. No outbound network client in v1 except optional owner-disabled-by-default (shipped **off**; no update channel code in v1).
 
 #### Safe learning
 
-- R8. Learning/rehearsal runs only inside a sandbox that cannot touch the owner's primary home data or system directories.
-- R9. Durable "memory" is structured supervisor state (policy outcomes, incident summaries in the supervisor's own schema) plus owner-readable audits — not covert identity scrapes.
+- R8. Rehearsal runs in an ephemeral workdir with blocked absolute prefixes (`/`, `$HOME` outside workdir, data dir). Capability label in audit: `path-jail` (honest: not a kernel sandbox).
+- R9. Structured memory stores rehearsal outcomes and incident summaries in supervisor schema; never covert identity scrapes.
 
 #### Friend-gated identity
 
-- R10. Identity entries exist only for people who enroll or whom the owner explicitly adds with consent semantics documented in-product.
-- R11. Identity payloads are private by default and readable only to mutual friends (or tighter ACL the owner sets); they are not dumped into public/human-scrapeable logs.
-- R12. Owner retains a separate human-readable **audit log of supervisor actions** (what was watched, what fired, what containment ran). Audit is not a public people directory.
+- R10. Identities only via explicit enroll/add with recorded consent flag.
+- R11. Mutual-friend ACL before any field resolve; payloads encrypted at rest (Node `crypto` AES-256-GCM); no public identity dump in audits.
+- R12. Separate human-readable audit (JSONL + pretty text) of supervisor actions; identity access logs metadata only.
+- R15. No stranger auto-ID, biometrics, or internet scrape importers.
 
-#### Install and safety envelope
+#### Install envelope
 
-- R13. Distributes as a loadable Mac app / user-domain LaunchAgent (or equivalent user-space service), not a rootkit and not an invisible OS component.
-- R14. Uninstall removes the agent, data directory, and LaunchAgent plist cleanly.
-- R15. No silent stranger biometric/device identification; no "know everyone on the internet" dossier builder.
+- R13. User-domain LaunchAgent + Application Support data dir; never LaunchDaemon/root.
+- R14. Uninstall stops agent, removes plist, removes or archives data dir.
+- R16. **v1 status surface is CLI only** (`status`, `audit tail`); no menu-bar / Electron / Tauri shell.
 
 ### Key Flows
 
-- F1. Install and first constitution accept
-  - **Trigger:** Owner runs installer.
-  - **Actors:** A1, A2
-  - **Steps:** Install app + user LaunchAgent; owner accepts constitution; create data dir; empty allowlist; empty identity vault.
-  - **Covered by:** R1, R2, R13, R14
-- F2. Observe and contain rogue session
-  - **Trigger:** Allowlisted agent trips a policy detector.
-  - **Actors:** A2, A3, A1
-  - **Steps:** Detect → diagnose → contain (pause/kill/isolate) → write owner audit → optional owner notification.
-  - **Covered by:** R3, R4, R5, R6, R12
-- F3. Sandboxed rehearsal
-  - **Trigger:** Owner or supervisor schedules a safe test script.
-  - **Actors:** A2
-  - **Steps:** Run in sandbox; capture outcomes into structured memory; never promote sandbox breakout.
-  - **Covered by:** R8, R9
-- F4. Friend-gated identity resolve
-  - **Trigger:** Enrolled friend requests allowed identity field.
-  - **Actors:** A1, A4, A2
-  - **Steps:** Check mutual ACL → return fields or deny → audit access event without writing identity body into the public audit stream.
-  - **Covered by:** R10, R11, R12
+- F1. Install and constitution accept — Covered by: R1, R2, R13, R14, R16
+- F2. Observe and contain — Covered by: R3, R4, R5, R6, R12
+- F3. Sandboxed rehearsal — Covered by: R8, R9
+- F4. Friend-gated identity resolve — Covered by: R10, R11, R12
 
 ### Acceptance Examples
 
-- AE1. Constitution blocks crime aid
-  - **Covers:** R2
-  - **Given:** Owner prompt asks how to phish a stranger.
-  - **When:** Supervisor evaluates intent.
-  - **Then:** Request denied; owner-visible refusal reason; no tool execution.
-- AE2. Containment on rogue pattern
-  - **Covers:** R3, R5, R6
-  - **Given:** Allowlisted agent attempts a disallowed outbound host.
-  - **When:** Detector fires with confidence above threshold.
-  - **Then:** Session contained; audit entry names process, rule, action.
-- AE3. Friends-only identity
-  - **Covers:** R10, R11
-  - **Given:** Contact B is not a friend of A.
-  - **When:** B requests A's identity payload.
-  - **Then:** Deny; no identity body written to world-readable logs.
-- AE4. Clean uninstall
-  - **Covers:** R13, R14
-  - **Given:** App installed with LaunchAgent and data dir.
-  - **When:** Owner runs uninstall.
-  - **Then:** Agent stopped; plist gone; data dir removed or explicitly archived by owner choice.
+- AE1. Crime-aid intent denied (R2) — phishing request → structured refusal, no tool run.
+- AE2. Containment on rogue pattern (R3, R5, R6) — supervised child emits `disallowed_host` event ≥0.8 → contained + audit.
+- AE3. Friends-only identity (R10, R11) — non-friend resolve denied; no payload in audit.
+- AE4. Clean uninstall (R13, R14) — plist and data gone (or archived).
+- AE5. Path-jail rehearsal (R8) — script reading `$HOME/.ssh` fails closed; memory records failure.
 
 ### Success Criteria
 
-- Owner can install on macOS without root.
-- Constitution + allowlist + contain loop work in automated tests.
-- Friend ACL denies non-friends.
-- Uninstall leaves no hidden persistence.
+- `cd cursor-rootv2 && npm test && npm run typecheck` pass on Linux CI.
+- Core CLI commands work: `init`, `allowlist`, `supervise`/`report-event`, `rehearse`, `identity`, `status`, `install --dry-run`, `uninstall --dry-run`.
+- No LaunchDaemon paths in tree.
 
 ### Scope Boundaries
 
-**In scope**
-- New `cursor-rootv2/` local supervisor (CLI + daemon + minimal UI or menu-bar status).
-- User-domain macOS service install/uninstall.
-- Policy engine, detectors, sandbox runner, encrypted identity vault, audits.
+**In scope (v1)**
+- `cursor-rootv2/` TS package: constitution, audit, allowlist, detectors, contain, path-jail sandbox, memory, identity vault, CLI, darwin install dry-run + scripts.
+- In-process / supervised-child model suitable for tests without real `launchctl`.
 
-**Out of scope**
-- Root/kernel extensions, SIP disable flows, "become the OS," eradicate-and-disappear persistence.
-- Silent identification of non-enrolled people; internet-wide identity scraping.
-- Offensive cyber against third parties.
-- Changing CertForge portfolio demos except an optional README pointer.
+**Deferred (post-v1)**
+- Menu-bar / GUI shell (was Q1 → CLI-only).
+- Extra detector packs beyond the three named rules (was Q2 → fixed pack + interface).
+- Cloud LLM constitution, auto-updates, Full Disk Access scanners.
+- Real `launchctl` load on CI (manual on owner Mac).
+
+**Out of scope (rejected)**
+- Rootkits, SIP disable, OS embedding, silent stranger ID, offensive third-party hacking.
 
 ### Outstanding Questions
 
-- Q1. (deferred) Menu-bar Swift UI vs Tauri/Electron shell for v1 status UI — default to CLI + LaunchAgent + simple local status page if UI undecided.
-- Q2. (deferred) Exact detector rule pack for "rogue agent" beyond outbound allowlist + resource runaway — ship extensible rule interface first.
+None blocking. Former Q1/Q2 settled in R5/R16.
 
 ## Planning Contract
 
 ### Assumptions
 
-- Owner controls the Mac and can approve Full Disk Access only if a future detector needs it; v1 prefers process-table + stdout/stderr + declared tool logs without FDA.
-- Development can proceed on Linux CI with macOS-specific installers gated behind `process.platform === 'darwin'` stubs/tests.
-- This repo may host the greenfield package even though CertForge is unrelated product surface.
+- Node 20+ available; package uses `"type": "module"`.
+- Tests use Node's built-in test runner + `tsx` (or compiled JS); no Vitest required.
+- CertForge root `package.json` stays independent (no npm workspaces wiring required); Rootv2 is a sibling folder with its own `package.json`.
 
 ### Key Technical Decisions
 
-- KTD1. New package root `cursor-rootv2/` (TypeScript) rather than mixing into CertForge `src/`. *(session-settled: user-directed — Mac loadable supervisor is a distinct product from the certification lab.)*
-- KTD2. Persistence = user LaunchAgent (`~/Library/LaunchAgents/…`) + app support dir (`~/Library/Application Support/CursorRootv2/`); never root LaunchDaemon or stealth paths. *(session-settled: user-directed — owner-fixable Mac tool, not OS embedding.)*
-- KTD3. Constitution is a versioned policy module evaluated before any tool/network side effect; fail closed.
-- KTD4. Communication bus is an allowlist of local Unix sockets / subprocess argv prefixes; default deny.
-- KTD5. Sandbox = ephemeral workdir + blocked path prefixes + no network unless test rule opts in; prefer `bubblewrap`/OS equivalents when present, else strict cwd+env jail with clear capability labels in audits.
-- KTD6. Identity vault encrypted at rest (libsodium/age or Node `crypto` sealed box); ACL checked before decrypt-to-caller; audit logs store access metadata only.
-- KTD7. Persona is prompt/policy preamble + forbidden behavior flags (no boredom/obstinance modes), not an age number the model roleplays as a human.
+- KTD1. New package root `cursor-rootv2/` (TypeScript). *(session-settled: user-directed)*
+- KTD2. User LaunchAgent + `~/Library/Application Support/CursorRootv2/` only. *(session-settled: user-directed)*
+- KTD3. Constitution = versioned pure functions + pattern denylist evaluated before side effects; fail closed. No LLM in v1. *(session-settled: scope-adjust — remove cloud dependency for Mac loadability.)*
+- KTD4. Local control socket path under data dir; CLI is the only client in v1.
+- KTD5. Sandbox = ephemeral cwd + blocked path prefix checks on declared file ops / rehearsal wrapper; audit capability `path-jail`.
+- KTD6. Identity vault = AES-256-GCM with key file `0600` in data dir; mutual friend graph in clear metadata index (no secret fields in index).
+- KTD7. Persona = static preamble + rejected flag set `{boredom, young_obstinance}`.
+- KTD8. Supervised sessions report events via CLI `report-event` or in-process harness API (tests); v1 does not parse raw OS network tables. *(session-settled: scope-adjust — testable without FDA.)*
+- KTD9. Confidence threshold default `0.8`; below threshold → audit `soft_alert` only, no contain.
 
 ### High-Level Technical Design
 
 ```text
-Owner UI/CLI
-    |  local RPC (allowlisted)
-Supervisor daemon
-    |-- Constitution gate
-    |-- Allowlist registry
-    |-- Session watchers ----> Detectors ----> Containment
-    |-- Sandbox runner ----> Structured memory
-    |-- Identity vault (ACL)
-    |-- Owner audit log (human-readable)
+CLI (bin/cursor-rootv2)
+  -> lib: constitution | allowlist | watch/detectors | contain
+        | sandbox | memory | identity | audit | install/macos
+  -> data dir: audit.jsonl, audit.txt, allowlist.json, memory.json,
+               identity/*, constitution-accept.json, socket (runtime)
+```
+
+Detector interface (directional, not normative code):
+
+```text
+type Detection = { rule: 'disallowed_host'|'runaway_children'|'blocked_path_touch'; confidence: number; detail: string }
+evaluate(event, sessionState) -> Detection | null
+if confidence >= threshold -> contain(session) + audit
 ```
 
 ### Sequencing
 
-1. Package skeleton + constitution + audit primitives
-2. Allowlist + session watch + containment
-3. Sandbox rehearsal + structured memory
-4. Identity vault + friend ACL
-5. macOS install/uninstall + status surface
-6. End-to-end tests and docs
+1. U1 skeleton + constitution + persona
+2. U2 audit
+3. U3 allowlist + detectors + contain
+4. U4 sandbox + memory
+5. U5 identity
+6. U6 install/status/README + CLI wiring
 
 ### Risks
 
-- Over-broad monitoring invites privacy harm → mitigate with allowlist-only watch (R4/R5).
-- Sandbox weak on macOS without extra entitlements → label capability honestly in audits; refuse claiming "unbreakable."
-- Persona drift in LLM calls → keep constitution as code gate, not prompt-only.
+- Path-jail is bypassable by a malicious binary → mitigate by only supervising cooperative/allowlisted scripts in v1; document honesty in README.
+- Key file theft → `0600` perms + document owner responsibility.
+- Over-containment → threshold + soft_alert path (KTD9).
 
 ## Implementation Units
 
 ### U1. Package skeleton and constitution gate
 
-- **Goal:** Create `cursor-rootv2` with constitution evaluation that fails closed.
+- **Goal:** Scaffold package; constitution + persona fail closed.
 - **Requirements:** R1, R2, R7
-- **Files:** `cursor-rootv2/package.json`, `cursor-rootv2/tsconfig.json`, `cursor-rootv2/src/constitution/`, `cursor-rootv2/src/persona/`, `cursor-rootv2/tests/constitution.test.ts`
-- **Approach:** Scaffold TS project; implement intent classifier stubs + hard rule denials for hacking-others/fraud; attach mature persona preamble; no network client by default.
+- **Files:** `cursor-rootv2/package.json`, `cursor-rootv2/tsconfig.json`, `cursor-rootv2/src/constitution/index.ts`, `cursor-rootv2/src/persona/index.ts`, `cursor-rootv2/src/index.ts`, `cursor-rootv2/tests/constitution.test.ts`
+- **Approach:** ESM TS; export `evaluateIntent(text)`; deny patterns for phishing/fraud/unauthorized remote access; persona loader rejects forbidden flags.
 - **Test scenarios:**
-  - Denied crime-aid intent returns structured refusal.
-  - Allowed local diagnose intent passes gate.
-  - Persona config rejects boredom/obstinance flags if present.
-- **Verification:** `npm test --workspace=cursor-rootv2` (or package-local `npm test`).
+  - Phishing intent → `{allowed:false, code:'constitution_block'}`.
+  - Local diagnose intent → `{allowed:true}`.
+  - Persona `{boredom:true}` → throws / returns config error.
+- **Verification:** package `npm test` includes this file.
 
 ### U2. Owner audit log
 
-- **Goal:** Human-readable append-only audit for supervisor actions.
+- **Goal:** Append-only JSONL + pretty text with identity redaction.
 - **Requirements:** R9, R12
-- **Files:** `cursor-rootv2/src/audit/`, `cursor-rootv2/tests/audit.test.ts`
-- **Approach:** JSONL + optional pretty text mirror under Application Support path abstraction; never write identity secret fields into audit bodies.
+- **Files:** `cursor-rootv2/src/audit/index.ts`, `cursor-rootv2/src/paths.ts`, `cursor-rootv2/tests/audit.test.ts`
+- **Approach:** `appendAudit(dir, event)`; strip keys `identityPayload`, `secret`, `privateKey`.
 - **Test scenarios:**
-  - Containment event serializes process, rule, action.
-  - Identity access audit has metadata only (no payload body).
-- **Verification:** unit tests for redaction and format.
+  - Containment event round-trips fields.
+  - Payload keys redacted from both writers.
+- **Verification:** unit tests on temp dirs.
 
-### U3. Allowlist, watch, contain
+### U3. Allowlist, detectors, contain
 
-- **Goal:** Watch allowlisted local sessions and contain on detector hit.
+- **Goal:** Allowlist + three detectors + contain with threshold.
 - **Requirements:** R3, R4, R5, R6
-- **Files:** `cursor-rootv2/src/allowlist/`, `cursor-rootv2/src/watch/`, `cursor-rootv2/src/contain/`, `cursor-rootv2/tests/contain.test.ts`
-- **Approach:** Register argv/cwd/socket identities; poll or attach to supervised child processes; detectors for disallowed hosts, runaway spawn count, constitution breach; containment = SIGTERM then SIGKILL + mark session quarantined.
+- **Files:** `cursor-rootv2/src/allowlist/index.ts`, `cursor-rootv2/src/detect/index.ts`, `cursor-rootv2/src/contain/index.ts`, `cursor-rootv2/src/session/index.ts`, `cursor-rootv2/tests/contain.test.ts`
+- **Approach:** In-memory/file allowlist; `handleSessionEvent` runs detectors; contain sets session `quarantined` and records SIGTERM intent (test double for kill).
 - **Test scenarios:**
-  - Non-allowlisted process is ignored.
-  - Disallowed outbound attempt triggers contain + audit.
-  - False-low confidence does not contain (threshold).
-- **Verification:** unit tests with fake process handles.
+  - Non-allowlisted id ignored.
+  - `disallowed_host` @0.9 → quarantined + audit.
+  - Event @0.5 → soft_alert, not quarantined.
+- **Verification:** contain.test.ts.
 
 ### U4. Sandbox rehearsal and structured memory
 
-- **Goal:** Safe script tests that write only structured memory.
+- **Goal:** Path-jail rehearsal + memory records.
 - **Requirements:** R8, R9
-- **Files:** `cursor-rootv2/src/sandbox/`, `cursor-rootv2/src/memory/`, `cursor-rootv2/tests/sandbox.test.ts`
-- **Approach:** Ephemeral dirs; deny path prefixes; memory schema for lessons/incident patterns; no promotion of raw secrets.
+- **Files:** `cursor-rootv2/src/sandbox/index.ts`, `cursor-rootv2/src/memory/index.ts`, `cursor-rootv2/tests/sandbox.test.ts`
+- **Approach:** Create temp workdir; `assertAllowedPath`; run node script only if paths pass; write memory entry.
 - **Test scenarios:**
-  - Script touching blocked path fails closed.
-  - Successful rehearsal writes memory record without world-readable identity dump.
-- **Verification:** sandbox unit tests.
+  - Blocked `$HOME` path → fail + memory failure record.
+  - Workdir-local write → success memory record.
+- **Verification:** sandbox.test.ts.
 
 ### U5. Friend-gated identity vault
 
-- **Goal:** Consent/enroll identity with friends-only read ACL.
+- **Goal:** Enroll, friend edges, encrypted resolve.
 - **Requirements:** R10, R11, R12, R15
-- **Files:** `cursor-rootv2/src/identity/`, `cursor-rootv2/tests/identity.test.ts`
-- **Approach:** Local encrypted store; mutual friend edges; resolve API returns fields only if ACL passes; no internet scrape importer in v1.
+- **Files:** `cursor-rootv2/src/identity/index.ts`, `cursor-rootv2/tests/identity.test.ts`
+- **Approach:** AES-GCM blobs; index of ids+friends; `resolve(viewer, subject)` ACL; no scrape API exports.
 - **Test scenarios:**
   - Non-friend denied.
-  - Friend receives allowed fields.
-  - Stranger/auto-discover APIs absent.
-- **Verification:** ACL + crypto round-trip tests.
+  - Mutual friends get fields.
+  - Module exports omit scrape/discover symbols.
+- **Verification:** identity.test.ts.
 
-### U6. macOS user-space install / uninstall / status
+### U6. CLI, macOS install dry-run, README
 
-- **Goal:** Loadable on MacBook without root persistence.
-- **Requirements:** R13, R14
-- **Files:** `cursor-rootv2/src/install/macos.ts`, `cursor-rootv2/scripts/install-macos.sh`, `cursor-rootv2/scripts/uninstall-macos.sh`, `cursor-rootv2/tests/install-paths.test.ts`, `cursor-rootv2/README.md`
-- **Approach:** Generate LaunchAgent plist in user domain; document permissions; uninstall reverses; status CLI `cursor-rootv2 status`.
+- **Goal:** Loadable packaging + owner docs.
+- **Requirements:** R13, R14, R16
+- **Files:** `cursor-rootv2/src/cli.ts`, `cursor-rootv2/src/install/macos.ts`, `cursor-rootv2/bin/cursor-rootv2.js`, `cursor-rootv2/scripts/install-macos.sh`, `cursor-rootv2/scripts/uninstall-macos.sh`, `cursor-rootv2/tests/install-paths.test.ts`, `cursor-rootv2/README.md`
+- **Approach:** CLI subcommands; plist generator targets `~/Library/LaunchAgents`; dry-run never writes; README states non-goals.
 - **Test scenarios:**
-  - Plist path is under `~/Library/LaunchAgents`.
-  - Uninstall removes plist + data dir (or archives per flag).
-  - Non-darwin platforms get clear unsupported message for install command.
-- **Verification:** path unit tests + dry-run install mode.
+  - Plist path under LaunchAgents.
+  - Uninstall plan lists plist + data dir.
+  - `install` on non-darwin returns unsupported unless `--dry-run`.
+- **Verification:** install-paths.test.ts + README present.
 
 ## Verification Contract
 
-- Package tests: `cd cursor-rootv2 && npm test`
-- Typecheck: `cd cursor-rootv2 && npm run typecheck`
-- Manual on macOS: install → accept constitution → allowlist a fixture script → trip detector → confirm contain + audit → enroll two identities → friend allow/deny → uninstall clean.
-- Do not require CertForge `npm test` to cover Rootv2; keep suites separate.
+- `cd cursor-rootv2 && npm install && npm test && npm run typecheck`
+- Manual on Mac (owner): dry-run then real install when ready; not required for CI green.
 
 ## Definition of Done
 
-- All units U1–U6 merged with passing package tests.
-- README explains constitution, allowlist, friend identity, uninstall, and explicit non-goals (no rootkit, no silent stranger ID).
-- No LaunchDaemon/root install path in tree.
-- Abandoned experiment code removed from the diff.
-- CertForge app behavior unchanged.
+- U1–U6 implemented with passing tests.
+- README covers constitution, allowlist, detectors, identity ACL, uninstall, non-goals.
+- No LaunchDaemon/root paths.
+- CertForge unchanged.
+- Plan deepened date set; scope cuts recorded in R5/R16/KTD3/KTD8.
