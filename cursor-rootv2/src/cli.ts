@@ -12,6 +12,7 @@ import { MemoryDataset } from "./datasets/memory-store.js";
 import { runThinkDemo } from "./demo/think-demo.js";
 import { runIdleRehearsal } from "./rehearse/idle-loop.js";
 import { runCreativeReversalSession } from "./art/creative-reversal.js";
+import { IncompleteThoughtQueue } from "./thoughts/incomplete-queue.js";
 
 function usage(): never {
   console.log(`cursor-rootv2 — local safety supervisor
@@ -23,6 +24,8 @@ Usage:
   cursor-rootv2 rehearse [--count N] [--think] [--pace MS]
   cursor-rootv2 gate "<prompt>"
   cursor-rootv2 decide "<prompt>"
+  cursor-rootv2 park <kind> "<seed>"     # save incomplete thought when interrupted
+  cursor-rootv2 complete [--pace MS]     # finish all parked thoughts → prior conversation
   cursor-rootv2 agent-register --name <n> --argv <prefix>
   cursor-rootv2 agents
   cursor-rootv2 install [--dry-run]
@@ -30,8 +33,19 @@ Usage:
   cursor-rootv2 sandbox --script <text> [--path <claimed>]
 
   (alias) bored → rehearse   # institutional drills, slow by default
+  note: think/muse/rehearse/decide auto-complete any incomplete thoughts first
 `);
   process.exit(1);
+}
+
+async function drainIncomplete(rootDir: string, paceMs = 0): Promise<void> {
+  const queue = new IncompleteThoughtQueue(rootDir);
+  if (queue.pending().length === 0) return;
+  await queue.completeAll({
+    rootDir,
+    paceMs,
+    onLine: (line) => console.log(line),
+  });
 }
 
 async function main(argv: string[]): Promise<void> {
@@ -42,6 +56,7 @@ async function main(argv: string[]): Promise<void> {
   switch (cmd) {
     case "status": {
       const supervisor = new SupervisorAgent({ rootDir });
+      const queue = new IncompleteThoughtQueue(rootDir);
       console.log(
         JSON.stringify(
           {
@@ -52,6 +67,8 @@ async function main(argv: string[]): Promise<void> {
             sessions: supervisor.watcher.listSessions().length,
             memory: supervisor.memory.list().length,
             interactions: supervisor.interactions.list().length,
+            incompleteThoughts: queue.pending().length,
+            stitches: queue.readStitches().length,
             mathThinking: true,
             neuralRaster: true,
             platform: process.platform,
@@ -62,15 +79,48 @@ async function main(argv: string[]): Promise<void> {
       );
       return;
     }
+    case "park": {
+      const kindRaw = rest[0] ?? "free";
+      const kind =
+        kindRaw === "muse" ||
+        kindRaw === "think" ||
+        kindRaw === "rehearse" ||
+        kindRaw === "decide" ||
+        kindRaw === "free"
+          ? kindRaw
+          : "free";
+      const seed = rest.slice(1).join(" ").trim() || "interrupted thought";
+      const queue = new IncompleteThoughtQueue(rootDir);
+      const thought = queue.park({
+        kind,
+        seed,
+        progressNote: "parked because user typed something new",
+      });
+      console.log(JSON.stringify(thought, null, 2));
+      return;
+    }
+    case "complete": {
+      const paceMs = Number(flagValue(rest, "--pace") ?? "0");
+      const queue = new IncompleteThoughtQueue(rootDir);
+      const { completed, lines } = await queue.completeAll({
+        rootDir,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 0,
+        onLine: (line) => console.log(line),
+      });
+      if (lines.length === 0) console.log("no incomplete thoughts — queue clear");
+      console.log(JSON.stringify({ completed: completed.length }, null, 2));
+      return;
+    }
     case "think":
     case "demo": {
+      const paceMs = Number(flagValue(rest, "--pace") ?? "400");
+      await drainIncomplete(rootDir, 0);
       const scenarioRaw = flagValue(rest, "--scenario") ?? "drift";
       const scenario =
         scenarioRaw === "threat" || scenarioRaw === "safe" || scenarioRaw === "drift"
           ? scenarioRaw
           : "drift";
       const steps = Number(flagValue(rest, "--steps") ?? "6");
-      const paceMs = Number(flagValue(rest, "--pace") ?? "400");
       const demo = await runThinkDemo({
         scenario,
         steps: Number.isFinite(steps) ? steps : 6,
@@ -89,6 +139,7 @@ async function main(argv: string[]): Promise<void> {
     }
     case "muse":
     case "art": {
+      await drainIncomplete(rootDir, 0);
       const steps = Number(flagValue(rest, "--steps") ?? "5");
       const paceMs = Number(flagValue(rest, "--pace") ?? "900");
       const session = await runCreativeReversalSession({
@@ -108,6 +159,7 @@ async function main(argv: string[]): Promise<void> {
     }
     case "rehearse":
     case "bored": {
+      await drainIncomplete(rootDir, 0);
       const count = Number(flagValue(rest, "--count") ?? "5");
       const withThink = rest.includes("--think");
       const paceMs = Number(flagValue(rest, "--pace") ?? "1200");
@@ -122,6 +174,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "decide": {
+      await drainIncomplete(rootDir, 0);
       const text = rest.join(" ").trim();
       if (!text) usage();
       const supervisor = new SupervisorAgent({ rootDir });
