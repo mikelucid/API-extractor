@@ -9,12 +9,14 @@ import { AuditLog } from "./audit/index.js";
 import { installMacos, uninstallMacos, recordInstallAudit } from "./install/macos.js";
 import { SandboxRunner } from "./sandbox/index.js";
 import { MemoryDataset } from "./datasets/memory-store.js";
+import { runThinkDemo } from "./demo/think-demo.js";
 
 function usage(): never {
   console.log(`cursor-rootv2 — local safety supervisor
 
 Usage:
   cursor-rootv2 status
+  cursor-rootv2 think [--scenario drift|threat|safe] [--steps N]
   cursor-rootv2 gate "<prompt>"
   cursor-rootv2 decide "<prompt>"
   cursor-rootv2 agent-register --name <n> --argv <prefix>
@@ -43,12 +45,35 @@ async function main(argv: string[]): Promise<void> {
             agents: supervisor.agents.list().length,
             sessions: supervisor.watcher.listSessions().length,
             memory: supervisor.memory.list().length,
+            interactions: supervisor.interactions.list().length,
+            mathThinking: true,
+            neuralRaster: true,
             platform: process.platform,
           },
           null,
           2,
         ),
       );
+      return;
+    }
+    case "think":
+    case "demo": {
+      const scenarioRaw = flagValue(rest, "--scenario") ?? "drift";
+      const scenario =
+        scenarioRaw === "threat" || scenarioRaw === "safe" || scenarioRaw === "drift"
+          ? scenarioRaw
+          : "drift";
+      const steps = Number(flagValue(rest, "--steps") ?? "6");
+      const demo = runThinkDemo({ scenario, steps: Number.isFinite(steps) ? steps : 6 });
+      console.log(demo.lines.join("\n"));
+      const supervisor = new SupervisorAgent({ rootDir });
+      supervisor.recordLesson({
+        title: `think-demo:${scenario}`,
+        summary: `Demo chose ${demo.finalAction} at R=${demo.finalRatio.toFixed(3)}`,
+        tags: ["demo", "math-thinking", scenario],
+        rating: 0.9,
+        decisionRatio: demo.finalRatio,
+      });
       return;
     }
     case "decide": {

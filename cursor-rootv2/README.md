@@ -22,12 +22,8 @@ npm run typecheck
 CLI (after `npm run build`, or via `npm run cli -- <cmd>`):
 
 ```bash
+npm run cli -- think --scenario drift
 npm run cli -- status
-npm run cli -- gate "Diagnose the local agent session"
-npm run cli -- agent-register --name coder --argv "node ./agents/coder.js"
-npm run cli -- agents
-npm run cli -- install --dry-run
-npm run cli -- uninstall --dry-run
 ```
 
 On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **user-domain** LaunchAgent under `~/Library/LaunchAgents` and data under `~/Library/Application Support/CursorRootv2/`.
