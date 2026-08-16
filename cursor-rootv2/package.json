@@ -1,0 +1,26 @@
+{
+  "name": "cursor-rootv2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local safety supervisor: constitutional gate, allowlisted agents, datasets, containment",
+  "bin": {
+    "cursor-rootv2": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cli": "node --import tsx src/cli.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "tsx": "^4.20.5",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.4"
+  }
+}
