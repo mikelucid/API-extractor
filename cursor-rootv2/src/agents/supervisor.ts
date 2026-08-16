@@ -8,6 +8,9 @@ import { ToolCatalog } from "../tools/catalog.js";
 import { ThoughtLoop } from "../thought/index.js";
 import { DEFAULT_ESCALATION, EscalationGate, type EscalationConfig } from "../escalation/index.js";
 import { ProviderChain } from "../fallback/index.js";
+import { InteractionLogger } from "../logging/interaction-logger.js";
+import { WireLogger } from "../logging/wire-logger.js";
+import { assertNoPublicDecentralTransfer } from "../logging/decentral-policy.js";
 import { AgentRegistry } from "./registry.js";
 import { SessionWatcher } from "./watch.js";
 import type { KillFn, ProcessSnapshot } from "./types.js";
@@ -21,6 +24,7 @@ export interface SupervisorOptions {
   audit?: AuditLog;
   escalation?: EscalationConfig;
   allowImageGen?: boolean;
+  domain?: string;
 }
 
 export interface DecideResult {
@@ -30,12 +34,13 @@ export interface DecideResult {
   escalated: boolean;
   plan: ThoughtPlan;
   toolResult?: ToolResult;
+  interactionUuid?: string;
 }
 
 /**
  * Local supervisor agent upgraded with PDF-derived decision loop:
  * LocalRouter → constitution → escalation → thought loop → tools;
- * observe path uses live ratio + quantized swing before contain.
+ * observe path uses live grid raster + neural P1/P0 ratio + quantized swing.
  */
 export class SupervisorAgent {
   readonly persona = DEFAULT_PERSONA;
@@ -49,9 +54,12 @@ export class SupervisorAgent {
   readonly thoughts = new ThoughtLoop();
   readonly escalation: EscalationGate;
   readonly providers = new ProviderChain();
+  readonly interactions: InteractionLogger;
+  readonly wire: WireLogger;
 
   constructor(options: SupervisorOptions) {
     assertValidPersona(this.persona);
+    assertNoPublicDecentralTransfer();
     this.audit = options.audit ?? new AuditLog({ rootDir: options.rootDir });
     const store = new AgentDatasetStore(options.rootDir);
     this.agents = new AgentRegistry(store, this.audit);
@@ -62,6 +70,9 @@ export class SupervisorAgent {
     this.memory = new MemoryDataset(options.rootDir);
     this.tools = new ToolCatalog({ allowImageGen: options.allowImageGen ?? false });
     this.escalation = new EscalationGate(options.escalation ?? DEFAULT_ESCALATION);
+    const domain = options.domain ?? "cursor-rootv2.local";
+    this.interactions = new InteractionLogger({ rootDir: options.rootDir, domain });
+    this.wire = new WireLogger({ rootDir: options.rootDir, domain });
   }
 
   gate(request: ConstitutionRequest) {
@@ -74,6 +85,11 @@ export class SupervisorAgent {
         intent: decision.intent,
         reason: decision.reason,
       }),
+    );
+    this.wire.log(
+      "constitution.gate",
+      { text: request.text, intentHint: request.intentHint ?? null },
+      { allowed: decision.allowed, intent: decision.intent },
     );
     return decision;
   }
@@ -92,6 +108,7 @@ export class SupervisorAgent {
         confidence: routed.confidence,
       }),
     );
+    this.wire.log("router.route", { text }, { toolId: routed.toolId, confidence: routed.confidence });
 
     const constitution = this.gate({
       text,
@@ -139,6 +156,22 @@ export class SupervisorAgent {
     }
 
     const toolResult = await this.tools.execute(routed.toolId, text);
+    this.wire.log(
+      `tool.${routed.toolId}`,
+      { text },
+      { ok: toolResult.ok, usedStub: toolResult.usedStub },
+      toolResult.error,
+    );
+
+    const interaction = this.interactions.addEntry({
+      topic: text.slice(0, 80),
+      request: text,
+      bestAnswer: thought.plan.reasoning,
+      apiUsed: routed.toolId,
+      rating: routed.confidence,
+      tags: ["decide", routed.toolId],
+    });
+
     this.recordLesson({
       title: `Decision: ${routed.toolId}`,
       summary: thought.plan.reasoning,
@@ -154,11 +187,25 @@ export class SupervisorAgent {
       escalated: esc.escalateToOwner,
       plan: thought.plan,
       toolResult,
+      interactionUuid: interaction.uuid,
     };
   }
 
   observe(snapshot: ProcessSnapshot) {
-    return this.watcher.observe(snapshot);
+    const result = this.watcher.observe(snapshot);
+    const nn = this.watcher.raster.lastNeuralPrediction();
+    this.wire.log(
+      "observe.ratio",
+      { pid: snapshot.pid, argv: snapshot.argv },
+      {
+        ignored: result.ignored,
+        contained: Boolean(result.containment?.contained),
+        threatSafeRatio: result.ratio?.threatSafeRatio ?? null,
+        neuralProbRatio: nn?.probRatio ?? null,
+        swing: result.swing?.action ?? null,
+      },
+    );
+    return result;
   }
 
   recordLesson(input: {
