@@ -20,6 +20,7 @@ import { runCreativeReversalSession } from "../art/creative-reversal.js";
 import { runThinkDemo } from "../demo/think-demo.js";
 import { inventSelfPrompt } from "../rehearse/self-prompts.js";
 import { SupervisorAgent } from "../agents/supervisor.js";
+import { ThoughtmonDex } from "../thoughtmon/dex.js";
 
 export type ThoughtKind = "muse" | "think" | "rehearse" | "decide" | "free";
 
@@ -148,6 +149,21 @@ export class IncompleteThoughtQueue {
       };
       this.stitch(stitch);
       completed.push(stitch);
+
+      // Catch finished thoughts as Thoughtmon — creativity layer on completion.
+      try {
+        const dex = new ThoughtmonDex(options.rootDir);
+        const mon = dex.catchFromSeed({
+          kind: thought.kind,
+          seed: thought.seed,
+          priorConversationId: thought.priorConversationId,
+          thoughtId: thought.id,
+          stage: "trained",
+        });
+        emit(`✧ caught Thoughtmon ${mon.nickname} (${mon.speciesId})`);
+      } catch {
+        /* non-fatal — stitching still wins */
+      }
 
       if (idx >= 0) {
         all[idx] = {

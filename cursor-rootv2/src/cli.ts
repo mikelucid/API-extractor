@@ -13,6 +13,8 @@ import { runThinkDemo } from "./demo/think-demo.js";
 import { runIdleRehearsal } from "./rehearse/idle-loop.js";
 import { runCreativeReversalSession } from "./art/creative-reversal.js";
 import { IncompleteThoughtQueue } from "./thoughts/incomplete-queue.js";
+import { ThoughtmonDex, type GymId } from "./thoughtmon/dex.js";
+import type { ThoughtKind } from "./thoughts/incomplete-queue.js";
 
 function usage(): never {
   console.log(`cursor-rootv2 — local safety supervisor
@@ -26,6 +28,11 @@ Usage:
   cursor-rootv2 decide "<prompt>"
   cursor-rootv2 park <kind> "<seed>"     # save incomplete thought when interrupted
   cursor-rootv2 complete [--pace MS]     # finish all parked thoughts → prior conversation
+  cursor-rootv2 encounter [kind]         # wild Thoughtmon (creativity catch)
+  cursor-rootv2 dex                      # party / box card
+  cursor-rootv2 train <id|nick> --gym <atelier|observatory|drill-yard|gatehouse|wilds>
+  cursor-rootv2 train-party [--pace MS]  # creative circuit for whole party
+  cursor-rootv2 spar <a> <b>             # creative spar via math R scores
   cursor-rootv2 agent-register --name <n> --argv <prefix>
   cursor-rootv2 agents
   cursor-rootv2 install [--dry-run]
@@ -34,6 +41,7 @@ Usage:
 
   (alias) bored → rehearse   # institutional drills, slow by default
   note: think/muse/rehearse/decide auto-complete any incomplete thoughts first
+  note: complete auto-catches finished thoughts as Thoughtmon
 `);
   process.exit(1);
 }
@@ -57,6 +65,8 @@ async function main(argv: string[]): Promise<void> {
     case "status": {
       const supervisor = new SupervisorAgent({ rootDir });
       const queue = new IncompleteThoughtQueue(rootDir);
+      const dex = new ThoughtmonDex(rootDir);
+      const dexState = dex.load();
       console.log(
         JSON.stringify(
           {
@@ -69,6 +79,11 @@ async function main(argv: string[]): Promise<void> {
             interactions: supervisor.interactions.list().length,
             incompleteThoughts: queue.pending().length,
             stitches: queue.readStitches().length,
+            thoughtmon: {
+              party: dexState.party.length,
+              box: dexState.box.length,
+              seen: dexState.seenSpecies.length,
+            },
             mathThinking: true,
             neuralRaster: true,
             platform: process.platform,
@@ -109,6 +124,63 @@ async function main(argv: string[]): Promise<void> {
       });
       if (lines.length === 0) console.log("no incomplete thoughts — queue clear");
       console.log(JSON.stringify({ completed: completed.length }, null, 2));
+      return;
+    }
+    case "encounter": {
+      const kindRaw = rest[0] ?? "muse";
+      const kind = parseKind(kindRaw);
+      const dex = new ThoughtmonDex(rootDir);
+      const { mon, lines } = dex.encounter(kind);
+      for (const line of lines) console.log(line);
+      console.log(JSON.stringify({ id: mon.id, nickname: mon.nickname, species: mon.speciesId }, null, 2));
+      return;
+    }
+    case "dex":
+    case "party": {
+      const dex = new ThoughtmonDex(rootDir);
+      for (const line of dex.dexCard()) console.log(line);
+      return;
+    }
+    case "train": {
+      const monId = rest.find((a) => !a.startsWith("--")) ?? "";
+      const gymRaw = flagValue(rest, "--gym") ?? "atelier";
+      if (!monId) usage();
+      const gym = parseGym(gymRaw);
+      const paceMs = Number(flagValue(rest, "--pace") ?? "0");
+      const dex = new ThoughtmonDex(rootDir);
+      const result = await dex.train({
+        monId,
+        gym,
+        rootDir,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 0,
+        onLine: (line) => console.log(line),
+      });
+      console.log(JSON.stringify({ summary: result.summary, evolved: result.evolved }, null, 2));
+      return;
+    }
+    case "train-party": {
+      const paceMs = Number(flagValue(rest, "--pace") ?? "0");
+      const dex = new ThoughtmonDex(rootDir);
+      if (dex.load().party.length === 0) {
+        console.log("party empty — try: encounter muse");
+        return;
+      }
+      const results = await dex.trainParty({
+        rootDir,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 0,
+        onLine: (line) => console.log(line),
+      });
+      console.log(JSON.stringify({ trained: results.length }, null, 2));
+      return;
+    }
+    case "spar": {
+      const a = rest[0];
+      const b = rest[1];
+      if (!a || !b) usage();
+      const dex = new ThoughtmonDex(rootDir);
+      const result = dex.spar(a, b);
+      for (const line of result.lines) console.log(line);
+      console.log(JSON.stringify({ winner: result.winnerId, summary: result.summary }, null, 2));
       return;
     }
     case "think":
@@ -269,6 +341,32 @@ function flagValue(args: string[], flag: string): string | undefined {
   const idx = args.indexOf(flag);
   if (idx === -1) return undefined;
   return args[idx + 1];
+}
+
+function parseKind(raw: string): ThoughtKind {
+  if (
+    raw === "muse" ||
+    raw === "think" ||
+    raw === "rehearse" ||
+    raw === "decide" ||
+    raw === "free"
+  ) {
+    return raw;
+  }
+  return "muse";
+}
+
+function parseGym(raw: string): GymId {
+  if (
+    raw === "atelier" ||
+    raw === "observatory" ||
+    raw === "drill-yard" ||
+    raw === "gatehouse" ||
+    raw === "wilds"
+  ) {
+    return raw;
+  }
+  return "atelier";
 }
 
 main(process.argv.slice(2)).catch((err) => {
