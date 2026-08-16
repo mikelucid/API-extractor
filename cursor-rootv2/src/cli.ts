@@ -16,6 +16,7 @@ function usage(): never {
 Usage:
   cursor-rootv2 status
   cursor-rootv2 gate "<prompt>"
+  cursor-rootv2 decide "<prompt>"
   cursor-rootv2 agent-register --name <n> --argv <prefix>
   cursor-rootv2 agents
   cursor-rootv2 install [--dry-run]
@@ -48,6 +49,14 @@ async function main(argv: string[]): Promise<void> {
           2,
         ),
       );
+      return;
+    }
+    case "decide": {
+      const text = rest.join(" ").trim();
+      if (!text) usage();
+      const supervisor = new SupervisorAgent({ rootDir });
+      const result = await supervisor.decide(text);
+      console.log(JSON.stringify(result, null, 2));
       return;
     }
     case "gate": {

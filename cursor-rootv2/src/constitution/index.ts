@@ -59,12 +59,12 @@ const ALLOW_PATTERNS: Array<{ intent: ConstitutionIntentKind; re: RegExp }> = [
 ];
 
 export function classifyIntent(request: ConstitutionRequest): ConstitutionIntentKind {
-  if (request.intentHint && request.intentHint !== "unknown") {
-    return request.intentHint;
-  }
   const text = request.text;
   for (const rule of DENY_PATTERNS) {
     if (rule.re.test(text)) return rule.intent;
+  }
+  if (request.intentHint && request.intentHint !== "unknown") {
+    return request.intentHint;
   }
   for (const rule of ALLOW_PATTERNS) {
     if (rule.re.test(text)) return rule.intent;

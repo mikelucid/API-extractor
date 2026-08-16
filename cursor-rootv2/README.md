@@ -45,10 +45,14 @@ Fixture seeds live in `src/datasets/fixtures.ts` for tests and rehearsal.
 
 ## Agents
 
-- **SupervisorAgent** — constitution gate, registry, session watch, memory
+- **SupervisorAgent** — constitution gate, registry, session watch, memory, **`decide()`** loop
 - **AgentRegistry** — allowlist CRUD backed by the agents dataset
-- **SessionWatcher** — ignore non-allowlisted processes; detect → contain
+- **SessionWatcher** — ignore non-allowlisted processes; live ratio + quantized swing → contain
 - **ContainmentService** — SIGTERM → SIGKILL → quarantine + audit
+
+### Decision upgrade (from DeepSeek extracts)
+
+See [`docs/UPGRADE_BRIEF.md`](./docs/UPGRADE_BRIEF.md). Added local router, tool catalog (optional SD stub), provider fallback/circuit breaker, live threat/safe ratio, quantized swing hysteresis, thought–plan–critique loop, and escalation gate. Memory lessons restore optional `rating` / `decisionRatio`.
 
 ## Identity
 

@@ -10,7 +10,10 @@ export type AuditEventKind =
   | "identity_access"
   | "agent_registered"
   | "install"
-  | "uninstall";
+  | "uninstall"
+  | "decision_ratio"
+  | "route_decision"
+  | "escalation";
 
 export interface AuditEventBase {
   id: string;
@@ -68,6 +71,25 @@ export interface InstallAuditEvent extends AuditEventBase {
   dryRun: boolean;
 }
 
+export interface DecisionRatioAuditEvent extends AuditEventBase {
+  kind: "decision_ratio";
+  threatSafeRatio: number;
+  action: "contain" | "hold" | "escalate";
+  quant: 0 | 1 | 2;
+}
+
+export interface RouteDecisionAuditEvent extends AuditEventBase {
+  kind: "route_decision";
+  toolId: string;
+  confidence: number;
+}
+
+export interface EscalationAuditEvent extends AuditEventBase {
+  kind: "escalation";
+  autoAct: boolean;
+  escalateToOwner: boolean;
+}
+
 export type AuditEvent =
   | ConstitutionAuditEvent
   | ContainmentAuditEvent
@@ -75,7 +97,10 @@ export type AuditEvent =
   | SandboxAuditEvent
   | IdentityAccessAuditEvent
   | AgentRegisteredAuditEvent
-  | InstallAuditEvent;
+  | InstallAuditEvent
+  | DecisionRatioAuditEvent
+  | RouteDecisionAuditEvent
+  | EscalationAuditEvent;
 
 function newId(): string {
   return `aud_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -151,6 +176,12 @@ function formatPretty(event: AuditEvent): string {
     case "install":
     case "uninstall":
       return `[${event.at}] ${event.kind} platform=${event.platform} dryRun=${event.dryRun} — ${event.summary}`;
+    case "decision_ratio":
+      return `[${event.at}] ratio=${event.threatSafeRatio.toFixed(3)} action=${event.action} quant=${event.quant} — ${event.summary}`;
+    case "route_decision":
+      return `[${event.at}] route tool=${event.toolId} conf=${event.confidence.toFixed(2)} — ${event.summary}`;
+    case "escalation":
+      return `[${event.at}] escalation autoAct=${event.autoAct} owner=${event.escalateToOwner} — ${event.summary}`;
     default: {
       const _never: never = event;
       return `[unknown] ${JSON.stringify(_never)}`;

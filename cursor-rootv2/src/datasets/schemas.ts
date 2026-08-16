@@ -19,6 +19,10 @@ export interface MemoryLessonRecord {
   relatedRuleIds: string[];
   relatedAgentIds: string[];
   sourceRehearsalId?: string;
+  /** Resurrected from Router PDF rating field (stripped as “redundant”, restored for ranked retrieval). */
+  rating?: number;
+  /** Live threat/safe ratio at lesson time. */
+  decisionRatio?: number;
 }
 
 export interface IdentityProfileFields {
