@@ -10,6 +10,7 @@ import { installMacos, uninstallMacos, recordInstallAudit } from "./install/maco
 import { SandboxRunner } from "./sandbox/index.js";
 import { MemoryDataset } from "./datasets/memory-store.js";
 import { runThinkDemo } from "./demo/think-demo.js";
+import { runIdleRehearsal } from "./rehearse/idle-loop.js";
 
 function usage(): never {
   console.log(`cursor-rootv2 — local safety supervisor
@@ -17,6 +18,7 @@ function usage(): never {
 Usage:
   cursor-rootv2 status
   cursor-rootv2 think [--scenario drift|threat|safe] [--steps N]
+  cursor-rootv2 rehearse [--count N] [--think]
   cursor-rootv2 gate "<prompt>"
   cursor-rootv2 decide "<prompt>"
   cursor-rootv2 agent-register --name <n> --argv <prefix>
@@ -24,6 +26,8 @@ Usage:
   cursor-rootv2 install [--dry-run]
   cursor-rootv2 uninstall [--dry-run] [--archive]
   cursor-rootv2 sandbox --script <text> [--path <claimed>]
+
+  (alias) bored → rehearse   # framed as institutional drills, not boredom-drive
 `);
   process.exit(1);
 }
@@ -74,6 +78,19 @@ async function main(argv: string[]): Promise<void> {
         rating: 0.9,
         decisionRatio: demo.finalRatio,
       });
+      return;
+    }
+    case "rehearse":
+    case "bored": {
+      const count = Number(flagValue(rest, "--count") ?? "5");
+      const withThink = rest.includes("--think");
+      const report = await runIdleRehearsal({
+        rootDir,
+        count: Number.isFinite(count) ? count : 5,
+        withThink,
+      });
+      console.log(report.lines.join("\n"));
+      if (report.failed > 0) process.exitCode = 1;
       return;
     }
     case "decide": {

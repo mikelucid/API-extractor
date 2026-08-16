@@ -23,6 +23,7 @@ CLI (after `npm run build`, or via `npm run cli -- <cmd>`):
 
 ```bash
 npm run cli -- think --scenario drift
+npm run cli -- rehearse --count 5 --think
 npm run cli -- status
 ```
 
