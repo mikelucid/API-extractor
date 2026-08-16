@@ -52,9 +52,9 @@ Fixture seeds live in `src/datasets/fixtures.ts` for tests and rehearsal.
 
 ### Decision upgrade (from DeepSeek extracts)
 
-See [`docs/UPGRADE_BRIEF.md`](./docs/UPGRADE_BRIEF.md), [`docs/NEURAL_RASTER_RATIO.md`](./docs/NEURAL_RASTER_RATIO.md), and [`docs/DECENTRALIZED_LLM_NOTES.md`](./docs/DECENTRALIZED_LLM_NOTES.md).
+See [`docs/UPGRADE_BRIEF.md`](./docs/UPGRADE_BRIEF.md), [`docs/NEURAL_RASTER_RATIO.md`](./docs/NEURAL_RASTER_RATIO.md), [`docs/MATH_THINKING_AI.md`](./docs/MATH_THINKING_AI.md), and [`docs/DECENTRALIZED_LLM_NOTES.md`](./docs/DECENTRALIZED_LLM_NOTES.md).
 
-Added local router, tool catalog (optional SD stub), provider fallback/circuit breaker, **grid live rasterizer + pure-TS MLP probability-ratio decisions**, quantized swing hysteresis, thought–plan–critique loop, escalation gate, and local Interaction/Wire loggers (UUID + domain; **no** torrent/DHT). Memory lessons restore optional `rating` / `decisionRatio`.
+Added local router, tool catalog (optional SD stub), provider fallback/circuit breaker, **grid live rasterizer + pure-TS MLP probability-ratio decisions**, **Mathematical Thinking AI** (explicit centroid/covariance/Gaussian \(R\) + horizon simulate), quantized swing hysteresis, thought–plan–critique loop, escalation gate, and local Interaction/Wire loggers (UUID + domain; **no** torrent/DHT). Memory lessons restore optional `rating` / `decisionRatio`.
 
 ## Identity
 
