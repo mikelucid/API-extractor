@@ -23,6 +23,6 @@ npm run cli -- decide "Diagnose the local agent session"
 
 ## Agent habit
 
-Same rule for this Cursor agent: if a turn was cut short by a new message, finish the unfinished work in the next turn and report it as continuation of the prior thread — do not drop it.
+Same rule for this agent: if a turn was cut short by a new message, finish the unfinished work in the next turn and report it as continuation of the prior thread — do not drop it.
 
 Finished thoughts are also **caught as Thoughtmon** — see `THOUGHTMON.md` for creativity training.

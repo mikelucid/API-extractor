@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Local safety supervisor: constitution, allowlisted agents, thought pipelines, harmonic memory.",
   "bin": {
-    "cursor-rootv2": "./src/cli.ts"
+    "cursor-rootv2": "./src/cli.ts",
+    "agent": "./src/cli.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

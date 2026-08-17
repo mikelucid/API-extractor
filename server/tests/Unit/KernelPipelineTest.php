@@ -56,6 +56,9 @@ final class KernelPipelineTest extends TestCase
 
     public function test_persona_rejects_boredom_and_sandbox_blocks_home(): void
     {
+        $this->assertStringStartsWith('You are an agent,', Persona::PREAMBLE);
+        $this->assertStringNotContainsString('Cursor agent', Persona::PREAMBLE);
+        $this->assertStringNotContainsString('You are Cursor', Persona::PREAMBLE);
         $bad = Persona::load(['boredom' => true]);
         $this->assertFalse($bad['ok']);
         new Persona();

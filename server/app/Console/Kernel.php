@@ -44,7 +44,7 @@ final class Kernel
 
                 return 0;
             case 'up':
-                echo json_encode(['ok' => true, 'service' => 'rootv2-server'], JSON_PRETTY_PRINT), PHP_EOL;
+        echo json_encode(['ok' => true, 'service' => 'agent'], JSON_PRETTY_PRINT), PHP_EOL;
 
                 return 0;
             case 'rootv2:status':

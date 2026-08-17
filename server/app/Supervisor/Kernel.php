@@ -239,7 +239,7 @@ final class Kernel
     public function status(): array
     {
         return [
-            'app' => 'rootv2-server',
+            'app' => 'agent',
             'persona' => $this->persona->mode,
             'tenureYearsEquivalent' => $this->persona->tenureYearsEquivalent,
             'dataDir' => $this->dataDir,

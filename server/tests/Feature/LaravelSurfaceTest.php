@@ -36,6 +36,7 @@ final class LaravelSurfaceTest extends TestCase
         $this->assertSame(128, $status['fabricCores']);
         $this->assertSame(29.0, $status['pricingFloor']);
         $this->assertFalse($status['decentral']->torrent);
+        $this->assertSame('agent', $status['app']);
         $this->assertSame('institutional', $status['persona']);
     }
 }

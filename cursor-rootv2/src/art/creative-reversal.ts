@@ -140,7 +140,7 @@ export async function runCreativeReversalSession(options: {
     options.onLine?.(line);
   };
 
-  emit("cursor-rootv2 · creative reversal");
+  emit("agent · creative reversal");
   emit("same math · two readings: realistic * not_realistic");
   emit("thesis: art comes from keeping the equations after dropping the threat labels");
   emit("");

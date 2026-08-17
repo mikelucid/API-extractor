@@ -1,6 +1,6 @@
-# Cursor Rootv2
+# Agent
 
-Local **safety supervisor** for the owner's machine. Watches allowlisted agents, evaluates a constitution gate, contains rogue sessions, stores structured datasets (agents / memory / encrypted identity), and leaves human-readable owner audits.
+Local **safety supervisor** (Rootv2) for the owner's machine. Watches allowlisted agents, evaluates a constitution gate, contains rogue sessions, stores structured datasets (agents / memory / encrypted identity), and leaves human-readable owner audits.
 
 This package is intentionally separate from the CertForge lab app. PHP/Laravel domain folders that follow the same theory documents live in [`../server/`](../server/).
 

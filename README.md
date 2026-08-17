@@ -14,7 +14,7 @@ npm install
 npm run dev
 ```
 
-## Related package: Cursor Rootv2
+## Related package: Agent
 
 Local safety supervisor (datasets + allowlisted agents + constitution gate) lives in [`cursor-rootv2/`](./cursor-rootv2/). The PHP/Laravel filesystem that mirrors each theory document lives in [`server/`](./server/). Both are separate from this certification lab.
 

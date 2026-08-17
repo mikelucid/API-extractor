@@ -17,7 +17,7 @@ import { ThoughtmonDex, type GymId } from "./thoughtmon/dex.js";
 import type { ThoughtKind } from "./thoughts/incomplete-queue.js";
 
 function usage(): never {
-  console.log(`cursor-rootv2 — local safety supervisor
+  console.log(`agent — local safety supervisor
 
 Usage:
   cursor-rootv2 status
@@ -74,7 +74,7 @@ async function main(argv: string[]): Promise<void> {
       console.log(
         JSON.stringify(
           {
-            app: "cursor-rootv2",
+            app: "agent",
             dataDir: rootDir,
             persona: supervisor.persona.mode,
             agents: supervisor.agents.list().length,
@@ -398,7 +398,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "daemon": {
-      console.log("cursor-rootv2 daemon idle (watch loop is invoked via observe API / tests)");
+      console.log("agent daemon idle (watch loop is invoked via observe API / tests)");
       return;
     }
     case undefined:
