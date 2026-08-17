@@ -1,0 +1,78 @@
+name: Deploy Production
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to deploy (e.g. v1.2.3)"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-prod:
+    name: Build & deploy to production EC2
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push production Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: rootagentv2-web
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          docker build --build-arg NODE_ENV=production \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "IMAGE=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Deploy to production EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_SSH_KEY }}
+          script: |
+            docker pull ${{ env.IMAGE }}
+            docker stop rootagentv2-web || true
+            docker rm rootagentv2-web || true
+            docker run -d --name rootagentv2-web -p 3000:3000 \
+              --env-file /opt/rootagentv2/.env \
+              --restart unless-stopped \
+              ${{ env.IMAGE }}
+
+      - name: Health check
+        run: |
+          sleep 15
+          curl --fail http://${{ secrets.PROD_EC2_HOST }}:3000/ || exit 1
+
+      - name: Notify completion
+        if: always()
+        run: |
+          echo "## Production Deployment Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Image: ${{ env.IMAGE }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date -u)" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,10 @@
+FROM node:20-alpine
+WORKDIR /app
+
+COPY cursor-rootv2/package*.json ./
+RUN npm ci --ignore-scripts
+
+COPY cursor-rootv2/ .
+RUN npm run build
+
+ENTRYPOINT ["node", "dist/cli.js"]

@@ -1,0 +1,54 @@
+name: Sandbox Test
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox:
+    name: Sandbox integration tests
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install agent dependencies
+        run: cd cursor-rootv2 && npm ci
+
+      - name: Build web
+        run: npm run build
+
+      - name: Build agent
+        run: cd cursor-rootv2 && npm run build
+
+      - name: Run agent tests (sandbox)
+        run: cd cursor-rootv2 && npm test
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist/
+          retention-days: 7
+
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "## Sandbox Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Timestamp: $(date -u)" >> $GITHUB_STEP_SUMMARY
