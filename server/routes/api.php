@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AmorphousController;
 use App\Http\Controllers\DecideController;
+use App\Http\Controllers\GwavController;
 use App\Http\Controllers\IdentityController;
 use App\Http\Controllers\MapController;
 use App\Http\Controllers\MemoryController;
@@ -28,5 +29,10 @@ return [
     'POST /api/amorphous/spin' => static fn (array $in) => (new AmorphousController())->spin($in),
     'POST /api/identity/enroll' => static fn (array $in) => (new IdentityController())->enroll($in),
     'POST /api/identity/resolve' => static fn (array $in) => (new IdentityController())->resolve($in),
+    'GET /api/gwav' => static fn () => (new GwavController())->index(),
+    'POST /api/gwav/seed' => static fn () => (new GwavController())->seed(),
+    'POST /api/gwav/prompt' => static fn (array $in) => (new GwavController())->prompt($in),
+    'POST /api/gwav/orbit' => static fn (array $in) => (new GwavController())->orbit($in),
+    'POST /api/gwav/export-ollama' => static fn (array $in) => (new GwavController())->exportOllama($in),
     'GET /api/legacy-status' => static fn () => (new StatusController())->show(),
 ];

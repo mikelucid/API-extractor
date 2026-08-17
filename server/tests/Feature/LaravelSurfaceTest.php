@@ -22,7 +22,8 @@ final class LaravelSurfaceTest extends TestCase
         $this->assertSame('app/CircuitBending', $map['circuit_bending']);
         $this->assertSame('app/SealedVault', $map['sealed_vault']);
         $this->assertSame('app/Supervisor', $map['rootv2_supervisor']);
-        foreach (['app/MorphicMemory', 'app/Decision', 'app/CognitiveFabric', 'app/AmorphousFabric', 'app/AgentQuery', 'app/CircuitBending', 'app/SealedVault', 'app/Supervisor'] as $dir) {
+        $this->assertSame('app/Gwav', $map['gwav']);
+        foreach (['app/MorphicMemory', 'app/Decision', 'app/CognitiveFabric', 'app/AmorphousFabric', 'app/AgentQuery', 'app/CircuitBending', 'app/SealedVault', 'app/Supervisor', 'app/Gwav'] as $dir) {
             $this->assertDirectoryExists(dirname(__DIR__, 2).'/'.$dir);
         }
     }

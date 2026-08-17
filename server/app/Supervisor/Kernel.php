@@ -252,6 +252,7 @@ final class Kernel
             'pricingFloor' => $this->pricing->quote(0)['bill'],
             'decentral' => DecentralPolicy::localOnly(),
             'identityUnsupported' => IdentityVault::unsupportedApis(),
+            'gwav' => (new \App\Gwav\Vault($this->dataDir))->list(),
         ];
     }
 

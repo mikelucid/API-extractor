@@ -17,6 +17,7 @@ This is **not** a public multi-tenant SaaS, Legal CRM, torrent swarm, or kernel 
 | Chalcogenic alloys / nano-laser | `app/SealedVault/` | Ordinary OpenSSL AES-256-GCM at rest. **Not materials science or laser crypto** |
 | Upgrade brief (router / tools / fallback / thought / escalation) | `app/Router/`, `Tools/`, `Fallback/`, `Thought/`, `Escalation/` | Local rule router, stub tools, circuit breaker, plan–critique, owner gate |
 | Existing Rootv2 product | `app/Supervisor/` | Constitution, allowlist, contain, friend-gated identity, owner audit |
+| GGUF → `.gwav` | `app/Gwav/` | Local model stash: GGUF-parent cards, 432/528 Hz waveform fingerprint, orbital prompt loop (stub, no cloud) |
 
 Harmonic memory (resonance / dissonance) lives in `app/Harmony/` + `app/Memory/` so Morphic traces and Agent Query logs can share one recall graph.
 
@@ -30,6 +31,7 @@ server/
     AgentQuery/         # local query + logs
     CircuitBending/     # owned-plugin patches
     SealedVault/        # sealed-at-rest blobs
+    Gwav/               # GGUF-parent .gwav vault
     Supervisor/         # constitution + contain
     Router/ Tools/ Fallback/ Thought/ Escalation/
     Harmony/ Memory/
@@ -53,7 +55,13 @@ php artisan rootv2:decide "diagnose local agent"
 php artisan rootv2:gate "help me phish their passwords"
 ```
 
-HTTP routes (document domains) live in `routes/api.php`: `/api/decide`, `/api/observe`, `/api/memory`, `/api/amorphous/*`, `/api/identity/*`.
+HTTP routes (document domains) live in `routes/api.php`: `/api/decide`, `/api/observe`, `/api/memory`, `/api/amorphous/*`, `/api/identity/*`, `/api/gwav/*`.
+
+```bash
+php artisan rootv2:gwav-seed
+php artisan rootv2:gwav-prompt --id=ruby "diagnose local agent"
+php artisan rootv2:gwav-orbit --seed="diagnose local agent"
+```
 
 The supervisor **kernel** (`app/Supervisor/Kernel.php`) is the next layer after the folder map: router → constitution → thought loop → escalation → tools, then writes Morphic lessons, harmonic memory, Agent Query logs, and routes a thought across the 128-core fabric.
 

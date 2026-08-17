@@ -30,6 +30,12 @@ final class ArtisanCommandsTest extends TestCase
         $decideOut = ob_get_clean();
         $this->assertSame(0, $decide);
         $this->assertStringContainsString('local_diagnose', $decideOut);
+
+        ob_start();
+        $gwav = Artisan::handle(['artisan', 'rootv2:gwav-seed']);
+        $gwavOut = ob_get_clean();
+        $this->assertSame(0, $gwav);
+        $this->assertStringContainsString('ruby', $gwavOut);
         putenv('ROOTV2_DATA_DIR');
     }
 }

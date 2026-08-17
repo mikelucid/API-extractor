@@ -34,6 +34,11 @@ final class Kernel
                 echo "  rootv2:memory-add --kind= --outcome= --detail=\n";
                 echo "  rootv2:spin-up --language=php --framework=laravel --traffic=low\n";
                 echo "  rootv2:persona               Load institutional persona\n";
+                echo "  rootv2:gwav-seed             Forge six orbital .gwav cards\n";
+                echo "  rootv2:gwav-list\n";
+                echo "  rootv2:gwav-prompt --id=ruby \"diagnose local agent\"\n";
+                echo "  rootv2:gwav-orbit --seed= \"diagnose local agent\"\n";
+                echo "  rootv2:gwav-export --id=origin\n";
                 return 0;
             case 'test':
                 passthru(dirname(__DIR__, 2).'/vendor/bin/phpunit --colors=always', $code);
@@ -90,6 +95,47 @@ final class Kernel
                 return 0;
             case 'rootv2:persona':
                 echo json_encode(Persona::load(self::options($args)), JSON_PRETTY_PRINT), PHP_EOL;
+
+                return 0;
+            case 'rootv2:gwav-seed':
+                echo json_encode(array_map(
+                    static fn ($f) => $f['header']['id'],
+                    (new \App\Gwav\Vault($dataDir))->seedOrbit(),
+                ), JSON_PRETTY_PRINT), PHP_EOL;
+
+                return 0;
+            case 'rootv2:gwav-list':
+                echo json_encode((new \App\Gwav\Vault($dataDir))->list(), JSON_PRETTY_PRINT), PHP_EOL;
+
+                return 0;
+            case 'rootv2:gwav-prompt':
+                $opts = self::options($args);
+                $id = $opts['id'] ?? 'ruby';
+                $vault = new \App\Gwav\Vault($dataDir);
+                if ($vault->list() === []) {
+                    $vault->seedOrbit();
+                }
+                echo json_encode(\App\Gwav\Prompt::run($vault->load($id), self::positional($args) ?? ''), JSON_PRETTY_PRINT), PHP_EOL;
+
+                return 0;
+            case 'rootv2:gwav-orbit':
+                $opts = self::options($args);
+                $vault = new \App\Gwav\Vault($dataDir);
+                if ($vault->list() === []) {
+                    $vault->seedOrbit();
+                }
+                $steps = \App\Gwav\Orbit::run($vault, $opts['seed'] ?? 'diagnose local agent', (int) ($opts['steps'] ?? 6));
+                echo json_encode(['steps' => $steps, 'jsonl' => \App\Gwav\Orbit::toJsonl($steps)], JSON_PRETTY_PRINT), PHP_EOL;
+
+                return 0;
+            case 'rootv2:gwav-export':
+                $opts = self::options($args);
+                $vault = new \App\Gwav\Vault($dataDir);
+                if ($vault->list() === []) {
+                    $vault->seedOrbit();
+                }
+                $file = $vault->load($opts['id'] ?? 'origin');
+                echo \App\Gwav\Codec::toOllamaModelfile($file), PHP_EOL;
 
                 return 0;
             default:

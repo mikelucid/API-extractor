@@ -26,6 +26,10 @@ npm run cli -- think --scenario drift
 npm run cli -- muse --steps 5
 npm run cli -- rehearse --count 5 --think --pace 1200
 npm run cli -- status
+npm run cli -- gwav-seed
+npm run cli -- gwav-prompt ruby "diagnose local agent"
+npm run cli -- gwav-orbit --seed "diagnose local agent"
+npm run cli -- gwav-export-ollama origin
 ```
 
 On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **user-domain** LaunchAgent under `~/Library/LaunchAgents` and data under `~/Library/Application Support/CursorRootv2/`.
@@ -38,6 +42,7 @@ On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **
 | Memory | `datasets/memory.jsonl` | Structured lessons / incident patterns (no secrets) |
 | Identity | `datasets/identity.vault.json` | AES-GCM sealed enrollments + friend ACL |
 | Policy | in-code defaults | Detector rules with confidence thresholds |
+| GWAV | `gwav/vault/*.gwav` | GGUF-parent local model cards + 432/528 Hz waveform fingerprint |
 
 Fixture seeds live in `src/datasets/fixtures.ts` for tests and rehearsal.
 

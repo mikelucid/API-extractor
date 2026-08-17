@@ -19,6 +19,7 @@ final class MapController
                 'sealed_vault' => 'app/SealedVault',
                 'upgrade_brief' => ['app/Router', 'app/Tools', 'app/Fallback', 'app/Thought', 'app/Escalation'],
                 'rootv2_supervisor' => 'app/Supervisor',
+                'gwav' => 'app/Gwav',
             ],
         ];
     }
