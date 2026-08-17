@@ -16,6 +16,8 @@ export const thought: ThoughtPattern = {
     next: 'identity',
     payload: {
       schema: 'supervisor-memory-v1',
+      read: 'harmonic-resonance',
+      write: 'resonate-deepen | dissonate-counterpoint',
     },
   }),
 }

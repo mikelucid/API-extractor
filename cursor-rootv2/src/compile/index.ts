@@ -2,59 +2,107 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compiledRoot, compiledSequenceDir } from '../paths.ts'
-import { assertChainLinks, THOUGHT_CHAIN } from '../thoughts/chain.ts'
+import { compiledRoot } from '../paths.ts'
+import {
+  assertChainLinks,
+  PIPELINE_IDS,
+  PIPELINES,
+  pipelineChain,
+  type PipelineId,
+} from '../thoughts/chain.ts'
 import { TAPE_MAGIC, type CompiledFrame, type ThoughtTape } from '../thoughts/types.ts'
 
 export type CompileResult = {
+  pipeline: PipelineId
   root: string
   sequenceDir: string
   tapePath: string
   runtimePath: string
   frames: CompiledFrame[]
+  pipelines: PipelineId[]
 }
 
 function hashPayload(payload: Record<string, unknown>): string {
   return crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex')
 }
 
-export function compileThoughtTape(dataDir: string, now = new Date()): CompileResult {
-  assertChainLinks()
-  const root = compiledRoot(dataDir)
-  const sequenceDir = compiledSequenceDir(dataDir)
+function writeTape(dir: string, frames: CompiledFrame[], now: Date): { tapePath: string; runtimePath: string; sequenceDir: string } {
+  const sequenceDir = path.join(dir, 'sequence')
   fs.rmSync(sequenceDir, { recursive: true, force: true })
   fs.mkdirSync(sequenceDir, { recursive: true })
-
-  const frames: CompiledFrame[] = THOUGHT_CHAIN.map((thought) => {
-    const compiled = thought.compile()
-    return { ...compiled, hash: hashPayload(compiled.payload) }
-  })
-
   for (const frame of frames) {
     const name = `${String(frame.seq).padStart(3, '0')}-${frame.id}.frame.json`
     fs.writeFileSync(path.join(sequenceDir, name), `${JSON.stringify(frame, null, 2)}\n`)
   }
-
   const tape: ThoughtTape = {
     magic: TAPE_MAGIC,
     version: 1,
     compiledAt: now.toISOString(),
     frames,
   }
-  const tapePath = path.join(root, 'tape.json')
+  const tapePath = path.join(dir, 'tape.json')
   fs.writeFileSync(tapePath, `${JSON.stringify(tape, null, 2)}\n`)
-
-  const runtimePath = path.join(root, 'runtime.mjs')
+  const runtimePath = path.join(dir, 'runtime.mjs')
   fs.writeFileSync(runtimePath, renderRuntimeMjs())
   fs.chmodSync(runtimePath, 0o755)
-
-  return { root, sequenceDir, tapePath, runtimePath, frames }
+  return { tapePath, runtimePath, sequenceDir }
 }
 
-export function loadThoughtTape(dataDir: string): ThoughtTape | null {
-  const tapePath = path.join(compiledRoot(dataDir), 'tape.json')
+function framesFor(pipeline: PipelineId): CompiledFrame[] {
+  const chain = pipelineChain(pipeline)
+  assertChainLinks(chain)
+  return chain.map((thought) => {
+    const compiled = thought.compile()
+    return { ...compiled, hash: hashPayload(compiled.payload) }
+  })
+}
+
+export function compileThoughtTape(
+  dataDir: string,
+  opts: { pipeline?: PipelineId; now?: Date } = {},
+): CompileResult {
+  const now = opts.now ?? new Date()
+  const active = opts.pipeline ?? 'contain'
+  const root = compiledRoot(dataDir)
+  fs.mkdirSync(root, { recursive: true })
+
+  for (const id of PIPELINE_IDS) {
+    const frames = framesFor(id)
+    writeTape(path.join(root, 'pipelines', id), frames, now)
+  }
+
+  const frames = framesFor(active)
+  const written = writeTape(root, frames, now)
+  fs.writeFileSync(
+    path.join(root, 'active.json'),
+    JSON.stringify({ pipeline: active, orders: PIPELINES }, null, 2),
+  )
+
+  return {
+    pipeline: active,
+    root,
+    sequenceDir: written.sequenceDir,
+    tapePath: written.tapePath,
+    runtimePath: written.runtimePath,
+    frames,
+    pipelines: [...PIPELINE_IDS],
+  }
+}
+
+export function loadThoughtTape(dataDir: string, pipeline?: PipelineId): ThoughtTape | null {
+  const root = compiledRoot(dataDir)
+  const tapePath = pipeline
+    ? path.join(root, 'pipelines', pipeline, 'tape.json')
+    : path.join(root, 'tape.json')
   if (!fs.existsSync(tapePath)) return null
   return JSON.parse(fs.readFileSync(tapePath, 'utf8')) as ThoughtTape
+}
+
+export function activePipeline(dataDir: string): PipelineId {
+  const p = path.join(compiledRoot(dataDir), 'active.json')
+  if (!fs.existsSync(p)) return 'contain'
+  const raw = JSON.parse(fs.readFileSync(p, 'utf8')) as { pipeline?: string }
+  return raw.pipeline === 'remember' || raw.pipeline === 'rehearse' ? raw.pipeline : 'contain'
 }
 
 function interpreterSource(): string {

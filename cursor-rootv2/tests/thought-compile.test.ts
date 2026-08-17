@@ -6,7 +6,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { compileThoughtTape, loadThoughtTape } from '../src/compile/index.ts'
 import { runTape } from '../src/runtime/vm.ts'
-import { assertChainLinks, THOUGHT_CHAIN } from '../src/thoughts/chain.ts'
+import { assertChainLinks, PIPELINES, pipelineChain, THOUGHT_CHAIN } from '../src/thoughts/chain.ts'
 
 test('thought chain is one kind per index file and links in sequence', () => {
   assert.equal(THOUGHT_CHAIN.length, 9)
@@ -41,6 +41,22 @@ test('compile writes hidden sequenced frames and a different-looking runtime', (
   assert.match(runtime, /thought-tape runtime/)
   assert.doesNotMatch(runtime, /long-tenured local safety supervisor/)
   assert.match(runtime, /function runTape/)
+})
+
+test('remember pipeline reorders think in the hidden folder after constitution', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-compile-'))
+  compileThoughtTape(dir, { pipeline: 'remember' })
+  const tape = loadThoughtTape(dir, 'remember')
+  assert.deepEqual(
+    tape?.frames.map((f) => f.id),
+    PIPELINES.remember,
+  )
+  assert.equal(tape?.frames[0]?.id, 'persona')
+  assert.equal(tape?.frames[1]?.id, 'constitution')
+  assert.equal(tape?.frames[2]?.id, 'remember')
+  const names = fs.readdirSync(path.join(dir, '.rootv2', 'pipelines', 'remember', 'sequence')).sort()
+  assert.ok(names[2]?.includes('remember'))
+  assert.doesNotThrow(() => assertChainLinks(pipelineChain('remember')))
 })
 
 test('compiled tape denies phishing without calling constitution source path', () => {

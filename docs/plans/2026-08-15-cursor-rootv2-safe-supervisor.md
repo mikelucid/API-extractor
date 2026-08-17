@@ -129,13 +129,15 @@ None blocking. Former Q1/Q2 settled in R5/R16.
 - KTD8. Supervised sessions report events via CLI `report-event` or in-process harness API (tests); v1 does not parse raw OS network tables. *(session-settled: scope-adjust — testable without FDA.)*
 - KTD9. Confidence threshold default `0.8`; below threshold → audit `soft_alert` only, no contain.
 - KTD10. Thought architecture: one thought kind per chained `src/thoughts/<seq>-<id>/index.ts`; `compile` emits owner-local `<dataDir>/.rootv2/sequence/` frames plus a generated tape stepper (`runtime.mjs`) that does not resemble the TypeScript sources. Dotfolder is owner-visible like `.git`, not covert OS hiding. *(session-settled: user-directed — chained index files as thought patterns that compile into a different-looking sequenced runtime.)*
+- KTD11. Multiple think pipelines (`contain`, `remember`, `rehearse`) compiled under `.rootv2/pipelines/`; persona+constitution remain the first two frames. Memory read/write uses harmonic resonance (deepen) and dissonance (counterpoint links), with access traces. Informed by Morphic Memory access-trace + plasticity notes; v1 is token/polarity harmony, not a layout-mutating allocator. *(session-settled: user-directed — alternate think order or memory linking; resonance/dissonance for recall and new meaning/depth.)*
 
 ### High-Level Technical Design
 
 ```text
 CLI (bin/cursor-rootv2)
   -> thought chain: src/thoughts/00-persona/index.ts ... 08-audit/index.ts
-  -> compile: <dataDir>/.rootv2/sequence/*.frame.json + tape.json + runtime.mjs
+  -> compile: <dataDir>/.rootv2/pipelines/<id>/sequence + active tape
+  -> harmonic memory: resonate deepen / dissonate counterpoint + access traces
   -> lib: constitution | allowlist | watch/detectors | contain
         | sandbox | memory | identity | audit | install/macos
   -> data dir: audit.jsonl, audit.txt, allowlist.json, memory.json,
@@ -159,6 +161,7 @@ if confidence >= threshold -> contain(session) + audit
 5. U5 identity
 6. U6 install/status/README + CLI wiring
 7. U7 thought-pattern chain compile + hidden sequenced runtime
+8. U8 pipelines + harmonic memory
 
 ### Risks
 
@@ -251,6 +254,19 @@ if confidence >= threshold -> contain(session) + audit
   - Generated `runtime.mjs` runs independently via `node`.
 - **Verification:** thought-compile.test.ts.
 
+### U8. Pipelines and harmonic memory
+
+- **Goal:** Alternate think orders in `.rootv2/pipelines/`; recall and ingest use resonance/dissonance.
+- **Requirements:** R9
+- **Files:** `cursor-rootv2/src/thoughts/chain.ts`, `cursor-rootv2/src/harmony/index.ts`, `cursor-rootv2/src/memory/index.ts`, `cursor-rootv2/src/compile/index.ts`, `cursor-rootv2/tests/harmony.test.ts`, `cursor-rootv2/tests/thought-compile.test.ts`
+- **Approach:** Pipelines `contain|remember|rehearse` with gates first. Ingest deepens on resonance, counterpoint-links on dissonance. Recall ranks by |score| and records access traces. Graph mirror at `.rootv2/memory-graph.json`.
+- **Test scenarios:**
+  - Remember pipeline frame 2 is `remember`.
+  - Same-topic success ingest deepens depth.
+  - Opposite-outcome ingest creates dissonant link.
+  - Recall orders by harmonic magnitude.
+- **Verification:** harmony.test.ts + thought-compile.test.ts pipeline case.
+
 ## Verification Contract
 
 - `cd cursor-rootv2 && npm install && npm test && npm run typecheck`
@@ -258,8 +274,8 @@ if confidence >= threshold -> contain(session) + audit
 
 ## Definition of Done
 
-- U1–U7 implemented with passing tests.
-- README covers constitution, allowlist, detectors, identity ACL, uninstall, thought compile, non-goals.
+- U1–U8 implemented with passing tests.
+- README covers constitution, allowlist, detectors, identity ACL, uninstall, thought compile, pipelines, harmonic memory, non-goals.
 - No LaunchDaemon/root paths.
 - CertForge unchanged.
 - Plan deepened date set; scope cuts recorded in R5/R16/KTD3/KTD8.

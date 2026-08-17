@@ -7,7 +7,10 @@ import { appendAudit, readAuditJsonl } from './audit/index.ts'
 import { createSession, handleSessionEvent } from './session/index.ts'
 import { rehearseScript } from './sandbox/index.ts'
 import { addFriend, enrollIdentity, resolveIdentity } from './identity/index.ts'
-import { compileThoughtTape, loadThoughtTape } from './compile/index.ts'
+import { compileThoughtTape, loadThoughtTape, activePipeline } from './compile/index.ts'
+import { ingestMemory, recallMemory } from './memory/index.ts'
+import { isPipelineId } from './thoughts/chain.ts'
+import type { PipelineId } from './thoughts/chain.ts'
 import { planInstall, planUninstall } from './install/macos.ts'
 import { runTape } from './runtime/vm.ts'
 import { defaultDataDir } from './paths.ts'
@@ -40,6 +43,14 @@ function dataDirFromArgs(args: string[]): string {
   return process.env.CURSOR_ROOTV2_DATA_DIR ?? defaultDataDir()
 }
 
+function pipelineFromArgs(args: string[]): PipelineId | undefined {
+  const idx = args.indexOf('--pipeline')
+  const value = idx >= 0 ? args[idx + 1] : undefined
+  if (value == null || value === '') return undefined
+  if (!isPipelineId(value)) fail('pipeline must be contain|remember|rehearse')
+  return value
+}
+
 export async function runCli(argv: string[]): Promise<void> {
   const [cmd, ...rest] = argv
   const dataDir = dataDirFromArgs(argv)
@@ -68,11 +79,13 @@ export async function runCli(argv: string[]): Promise<void> {
       return
     }
     case 'compile': {
-      const compiled = compileThoughtTape(dataDir)
+      const compiled = compileThoughtTape(dataDir, { pipeline: pipelineFromArgs(rest) })
       print(
         JSON.stringify(
           {
             root: compiled.root,
+            pipeline: compiled.pipeline,
+            pipelines: compiled.pipelines,
             frames: compiled.frames.map((f) => ({ seq: f.seq, id: f.id, op: f.op, hash: f.hash.slice(0, 12) })),
             runtimePath: compiled.runtimePath,
           },
@@ -83,14 +96,49 @@ export async function runCli(argv: string[]): Promise<void> {
       return
     }
     case 'think': {
-      let tape = loadThoughtTape(dataDir)
-      if (!tape) tape = compileThoughtTape(dataDir) && loadThoughtTape(dataDir)
+      const pipelineArg = pipelineFromArgs(rest)
+      if (pipelineArg) compileThoughtTape(dataDir, { pipeline: pipelineArg })
+      let tape = loadThoughtTape(dataDir, pipelineArg)
+      if (!tape) {
+        compileThoughtTape(dataDir, { pipeline: pipelineArg })
+        tape = loadThoughtTape(dataDir, pipelineArg)
+      }
       if (!tape) fail('compile produced no tape')
       const intentIdx = rest.indexOf('--intent')
-      const intent = intentIdx >= 0 ? rest[intentIdx + 1] : stripMeta(rest).join(' ') || undefined
+      const intent = intentIdx >= 0 ? rest[intentIdx + 1] : undefined
       const result = runTape(tape, { intent })
-      print(JSON.stringify(result, null, 2))
+      print(JSON.stringify({ pipeline: pipelineArg ?? activePipeline(dataDir), ...result }, null, 2))
       if (result.decision?.allowed === false) process.exitCode = 1
+      return
+    }
+    case 'memory': {
+      const sub = rest[0]
+      if (sub === 'recall') {
+        const query = stripMeta(rest.slice(1)).join(' ')
+        if (!query) fail('usage: memory recall <query>')
+        const hits = recallMemory(dataDir, query).map((h) => ({
+          id: h.record.id,
+          harmonic: h.harmonic,
+          score: Number(h.score.toFixed(3)),
+          depth: h.record.depth,
+          kind: h.record.kind,
+          detail: h.record.detail,
+        }))
+        print(JSON.stringify(hits, null, 2))
+        return
+      }
+      if (sub === 'add') {
+        const kind = rest.includes('--kind') ? rest[rest.indexOf('--kind') + 1] : 'note'
+        const outcomeRaw = rest.includes('--outcome') ? rest[rest.indexOf('--outcome') + 1] : 'info'
+        const outcome =
+          outcomeRaw === 'success' || outcomeRaw === 'failure' || outcomeRaw === 'info' ? outcomeRaw : 'info'
+        const detailIdx = rest.indexOf('--detail')
+        const detail = detailIdx >= 0 ? rest[detailIdx + 1] : stripMeta(rest.slice(1)).join(' ')
+        if (!detail) fail('usage: memory add --kind k --outcome success|failure|info --detail text')
+        print(JSON.stringify(ingestMemory(dataDir, { kind, outcome, detail }), null, 2))
+        return
+      }
+      fail('usage: memory recall|add ...')
       return
     }
     case 'evaluate': {
@@ -190,7 +238,11 @@ export async function runCli(argv: string[]): Promise<void> {
             allowlist: loadAllowlist(dataDir).entries.length,
             auditEvents: readAuditJsonl(dataDir).length,
             thoughtTape: tape
-              ? { frames: tape.frames.length, dir: path.join(dataDir, '.rootv2') }
+              ? {
+                  frames: tape.frames.map((f) => f.id),
+                  pipeline: activePipeline(dataDir),
+                  dir: path.join(dataDir, '.rootv2'),
+                }
               : null,
           },
           null,
@@ -229,7 +281,9 @@ export async function runCli(argv: string[]): Promise<void> {
     case 'help':
     case undefined:
       print(`cursor-rootv2 <command>
-  init | compile | think [--intent text] | evaluate <text> | allowlist | report-event | rehearse
+  init | compile [--pipeline contain|remember|rehearse] | think [--pipeline p] --intent text
+  memory recall <query> | memory add --kind k --outcome success|failure|info --detail text
+  evaluate <text> | allowlist | report-event | rehearse
   identity | status | install [--dry-run] | uninstall [--dry-run] [--purge-data]
 Env: CURSOR_ROOTV2_DATA_DIR or --data-dir <path>`)
       return

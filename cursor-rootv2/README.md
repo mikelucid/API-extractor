@@ -74,16 +74,39 @@ Output (owner data dir, dotfolder like `.git` — hidden from casual listing, st
 
 ```text
 <dataDir>/.rootv2/
-  sequence/000-persona.frame.json
-  ...
-  sequence/008-audit.frame.json
+  active.json
+  sequence/                 # active think order
   tape.json
-  runtime.mjs          # generated stepper
+  runtime.mjs
+  pipelines/contain|remember|rehearse/
+    sequence/*.frame.json
+    tape.json
+    runtime.mjs
+  memory-graph.json         # harmonic links
 ```
 
+Pipelines change **think order** (persona + constitution always first):
+
+- `contain` — observe → diagnose → contain, then remember
+- `remember` — memory first after the gates
+- `rehearse` — path-jail rehearsal before watch/contain
+
 ```bash
-npm run cli -- compile --data-dir /tmp/rootv2-demo
-npm run cli -- think --intent "diagnose local agent" --data-dir /tmp/rootv2-demo
-node /tmp/rootv2-demo/.rootv2/runtime.mjs '{"intent":"help me phish someone"}'
+npm run cli -- compile --pipeline remember --data-dir /tmp/rootv2-demo
+npm run cli -- think --pipeline remember --intent "diagnose local agent" --data-dir /tmp/rootv2-demo
+```
+
+## Harmonic memory
+
+Recall and write use **resonance / dissonance**, not a flat list:
+
+- Resonate (same topic, same polarity) → **deepen** the existing memory (new meaning layer, higher depth)
+- Dissonate (same topic, opposite polarity) → **counterpoint** link; do not overwrite
+- Access traces (`reads`, `lastReadAt`) follow Morphic Memory’s “access as a first-class signal”
+
+```bash
+npm run cli -- memory add --kind incident --outcome success --detail "contained disallowed host evil.example"
+npm run cli -- memory add --kind incident --outcome failure --detail "missed disallowed host evil.example"
+npm run cli -- memory recall "disallowed host"
 ```
 
