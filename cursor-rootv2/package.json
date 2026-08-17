@@ -3,16 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local safety supervisor: constitutional gate, allowlisted agents, datasets, containment",
+  "description": "Local safety supervisor: constitution, allowlisted agents, thought pipelines, harmonic memory.",
   "bin": {
-    "cursor-rootv2": "./dist/cli.js"
+    "cursor-rootv2": "./src/cli.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cli": "node --import tsx src/cli.ts"
+    "cli": "tsx src/cli.ts",
+    "compile": "tsx src/cli.ts compile"
   },
   "engines": {
     "node": ">=20"

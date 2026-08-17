@@ -147,3 +147,9 @@ export function isBlockedPath(target: string, workDir: string): boolean {
   if (resolved.startsWith("/")) return true;
   return false;
 }
+
+export function assertAllowedPath(workdir: string, targetPath: string): void {
+  if (isBlockedPath(targetPath, workdir)) {
+    throw new Error(`Path jail blocked: ${resolve(targetPath)}`);
+  }
+}

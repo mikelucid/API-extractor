@@ -9,31 +9,68 @@ import { AuditLog } from "./audit/index.js";
 import { installMacos, uninstallMacos, recordInstallAudit } from "./install/macos.js";
 import { SandboxRunner } from "./sandbox/index.js";
 import { MemoryDataset } from "./datasets/memory-store.js";
+import { runThinkDemo } from "./demo/think-demo.js";
+import { runIdleRehearsal } from "./rehearse/idle-loop.js";
+import { runCreativeReversalSession } from "./art/creative-reversal.js";
+import { IncompleteThoughtQueue } from "./thoughts/incomplete-queue.js";
+import { ThoughtmonDex, type GymId } from "./thoughtmon/dex.js";
+import type { ThoughtKind } from "./thoughts/incomplete-queue.js";
 
 function usage(): never {
   console.log(`cursor-rootv2 — local safety supervisor
 
 Usage:
   cursor-rootv2 status
+  cursor-rootv2 think [--scenario drift|threat|safe] [--steps N] [--pace MS]
+  cursor-rootv2 muse [--steps N] [--pace MS]
+  cursor-rootv2 rehearse [--count N] [--think] [--pace MS]
   cursor-rootv2 gate "<prompt>"
   cursor-rootv2 decide "<prompt>"
+  cursor-rootv2 park <kind> "<seed>"     # save incomplete thought when interrupted
+  cursor-rootv2 complete [--pace MS]     # finish all parked thoughts → prior conversation
+  cursor-rootv2 encounter [kind]         # wild Thoughtmon (creativity catch)
+  cursor-rootv2 dex                      # party / box card
+  cursor-rootv2 train <id|nick> --gym <atelier|observatory|drill-yard|gatehouse|wilds>
+  cursor-rootv2 train-party [--pace MS]  # creative circuit for whole party
+  cursor-rootv2 spar <a> <b>             # creative spar via math R scores
   cursor-rootv2 agent-register --name <n> --argv <prefix>
   cursor-rootv2 agents
   cursor-rootv2 install [--dry-run]
   cursor-rootv2 uninstall [--dry-run] [--archive]
   cursor-rootv2 sandbox --script <text> [--path <claimed>]
+  cursor-rootv2 compile [--pipeline contain|remember|rehearse]
+  cursor-rootv2 tape --intent "<text>" [--pipeline name]
+  cursor-rootv2 memory-recall "<query>"
+  cursor-rootv2 memory-add --kind k --outcome success|failure|info --detail "<text>"
+
+  (alias) bored → rehearse   # institutional drills, slow by default
+  note: think/muse/rehearse/decide auto-complete any incomplete thoughts first
+  note: complete auto-catches finished thoughts as Thoughtmon
 `);
   process.exit(1);
 }
 
+async function drainIncomplete(rootDir: string, paceMs = 0): Promise<void> {
+  const queue = new IncompleteThoughtQueue(rootDir);
+  if (queue.pending().length === 0) return;
+  await queue.completeAll({
+    rootDir,
+    paceMs,
+    onLine: (line) => console.log(line),
+  });
+}
+
 async function main(argv: string[]): Promise<void> {
   const [cmd, ...rest] = argv;
-  const rootDir = process.env.ROOTV2_DATA_DIR ?? applicationSupportDir();
+  const rootDir = process.env.CURSOR_ROOTV2_DATA_DIR ?? process.env.ROOTV2_DATA_DIR ?? applicationSupportDir();
   mkdirSync(rootDir, { recursive: true });
 
   switch (cmd) {
     case "status": {
       const supervisor = new SupervisorAgent({ rootDir });
+      const queue = new IncompleteThoughtQueue(rootDir);
+      const dex = new ThoughtmonDex(rootDir);
+      const dexState = dex.load();
       console.log(
         JSON.stringify(
           {
@@ -43,6 +80,16 @@ async function main(argv: string[]): Promise<void> {
             agents: supervisor.agents.list().length,
             sessions: supervisor.watcher.listSessions().length,
             memory: supervisor.memory.list().length,
+            interactions: supervisor.interactions.list().length,
+            incompleteThoughts: queue.pending().length,
+            stitches: queue.readStitches().length,
+            thoughtmon: {
+              party: dexState.party.length,
+              box: dexState.box.length,
+              seen: dexState.seenSpecies.length,
+            },
+            mathThinking: true,
+            neuralRaster: true,
             platform: process.platform,
           },
           null,
@@ -51,7 +98,159 @@ async function main(argv: string[]): Promise<void> {
       );
       return;
     }
+    case "park": {
+      const kindRaw = rest[0] ?? "free";
+      const kind =
+        kindRaw === "muse" ||
+        kindRaw === "think" ||
+        kindRaw === "rehearse" ||
+        kindRaw === "decide" ||
+        kindRaw === "free"
+          ? kindRaw
+          : "free";
+      const seed = rest.slice(1).join(" ").trim() || "interrupted thought";
+      const queue = new IncompleteThoughtQueue(rootDir);
+      const thought = queue.park({
+        kind,
+        seed,
+        progressNote: "parked because user typed something new",
+      });
+      console.log(JSON.stringify(thought, null, 2));
+      return;
+    }
+    case "complete": {
+      const paceMs = Number(flagValue(rest, "--pace") ?? "0");
+      const queue = new IncompleteThoughtQueue(rootDir);
+      const { completed, lines } = await queue.completeAll({
+        rootDir,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 0,
+        onLine: (line) => console.log(line),
+      });
+      if (lines.length === 0) console.log("no incomplete thoughts — queue clear");
+      console.log(JSON.stringify({ completed: completed.length }, null, 2));
+      return;
+    }
+    case "encounter": {
+      const kindRaw = rest[0] ?? "muse";
+      const kind = parseKind(kindRaw);
+      const dex = new ThoughtmonDex(rootDir);
+      const { mon, lines } = dex.encounter(kind);
+      for (const line of lines) console.log(line);
+      console.log(JSON.stringify({ id: mon.id, nickname: mon.nickname, species: mon.speciesId }, null, 2));
+      return;
+    }
+    case "dex":
+    case "party": {
+      const dex = new ThoughtmonDex(rootDir);
+      for (const line of dex.dexCard()) console.log(line);
+      return;
+    }
+    case "train": {
+      const monId = rest.find((a) => !a.startsWith("--")) ?? "";
+      const gymRaw = flagValue(rest, "--gym") ?? "atelier";
+      if (!monId) usage();
+      const gym = parseGym(gymRaw);
+      const paceMs = Number(flagValue(rest, "--pace") ?? "0");
+      const dex = new ThoughtmonDex(rootDir);
+      const result = await dex.train({
+        monId,
+        gym,
+        rootDir,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 0,
+        onLine: (line) => console.log(line),
+      });
+      console.log(JSON.stringify({ summary: result.summary, evolved: result.evolved }, null, 2));
+      return;
+    }
+    case "train-party": {
+      const paceMs = Number(flagValue(rest, "--pace") ?? "0");
+      const dex = new ThoughtmonDex(rootDir);
+      if (dex.load().party.length === 0) {
+        console.log("party empty — try: encounter muse");
+        return;
+      }
+      const results = await dex.trainParty({
+        rootDir,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 0,
+        onLine: (line) => console.log(line),
+      });
+      console.log(JSON.stringify({ trained: results.length }, null, 2));
+      return;
+    }
+    case "spar": {
+      const a = rest[0];
+      const b = rest[1];
+      if (!a || !b) usage();
+      const dex = new ThoughtmonDex(rootDir);
+      const result = dex.spar(a, b);
+      for (const line of result.lines) console.log(line);
+      console.log(JSON.stringify({ winner: result.winnerId, summary: result.summary }, null, 2));
+      return;
+    }
+    case "think":
+    case "demo": {
+      const paceMs = Number(flagValue(rest, "--pace") ?? "400");
+      await drainIncomplete(rootDir, 0);
+      const scenarioRaw = flagValue(rest, "--scenario") ?? "drift";
+      const scenario =
+        scenarioRaw === "threat" || scenarioRaw === "safe" || scenarioRaw === "drift"
+          ? scenarioRaw
+          : "drift";
+      const steps = Number(flagValue(rest, "--steps") ?? "6");
+      const demo = await runThinkDemo({
+        scenario,
+        steps: Number.isFinite(steps) ? steps : 6,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 400,
+        onLine: (line) => console.log(line),
+      });
+      const supervisor = new SupervisorAgent({ rootDir });
+      supervisor.recordLesson({
+        title: `think-demo:${scenario}`,
+        summary: `Demo chose ${demo.finalAction} at R=${demo.finalRatio.toFixed(3)}`,
+        tags: ["demo", "math-thinking", scenario],
+        rating: 0.9,
+        decisionRatio: demo.finalRatio,
+      });
+      return;
+    }
+    case "muse":
+    case "art": {
+      await drainIncomplete(rootDir, 0);
+      const steps = Number(flagValue(rest, "--steps") ?? "5");
+      const paceMs = Number(flagValue(rest, "--pace") ?? "900");
+      const session = await runCreativeReversalSession({
+        rootDir,
+        steps: Number.isFinite(steps) ? steps : 5,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 900,
+        onLine: (line) => console.log(line),
+      });
+      const supervisor = new SupervisorAgent({ rootDir });
+      supervisor.recordLesson({
+        title: "muse:realistic*not_realistic",
+        summary: `Recorded ${session.records.length} creative reversals`,
+        tags: ["art", "muse", "realism"],
+        rating: 0.92,
+      });
+      return;
+    }
+    case "rehearse":
+    case "bored": {
+      await drainIncomplete(rootDir, 0);
+      const count = Number(flagValue(rest, "--count") ?? "5");
+      const withThink = rest.includes("--think");
+      const paceMs = Number(flagValue(rest, "--pace") ?? "1200");
+      const report = await runIdleRehearsal({
+        rootDir,
+        count: Number.isFinite(count) ? count : 5,
+        withThink,
+        paceMs: Number.isFinite(paceMs) ? paceMs : 1200,
+        onLine: (line) => console.log(line),
+      });
+      if (report.failed > 0) process.exitCode = 1;
+      return;
+    }
     case "decide": {
+      await drainIncomplete(rootDir, 0);
       const text = rest.join(" ").trim();
       if (!text) usage();
       const supervisor = new SupervisorAgent({ rootDir });
@@ -111,6 +310,77 @@ async function main(argv: string[]): Promise<void> {
       console.log(JSON.stringify(result, null, 2));
       return;
     }
+    case "compile": {
+      const { compileThoughtTape } = await import("./compile/index.js");
+      const pipelineRaw = flagValue(rest, "--pipeline");
+      const pipeline =
+        pipelineRaw === "remember" || pipelineRaw === "rehearse" || pipelineRaw === "contain"
+          ? pipelineRaw
+          : undefined;
+      const compiled = compileThoughtTape(rootDir, pipeline ? { pipeline } : {});
+      console.log(
+        JSON.stringify(
+          {
+            pipeline: compiled.pipeline,
+            pipelines: compiled.pipelines,
+            frames: compiled.frames.map((f) => f.id),
+            runtimePath: compiled.runtimePath,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    case "tape": {
+      const { compileThoughtTape, loadThoughtTape } = await import("./compile/index.js");
+      const { runTape } = await import("./runtime/vm.js");
+      const pipelineRaw = flagValue(rest, "--pipeline");
+      const pipeline =
+        pipelineRaw === "remember" || pipelineRaw === "rehearse" || pipelineRaw === "contain"
+          ? pipelineRaw
+          : undefined;
+      compileThoughtTape(rootDir, pipeline ? { pipeline } : {});
+      const tape = loadThoughtTape(rootDir, pipeline);
+      if (!tape) {
+        console.error("compile produced no tape");
+        process.exitCode = 1;
+        return;
+      }
+      const intent = flagValue(rest, "--intent") ?? rest.filter((a) => !a.startsWith("--")).join(" ");
+      console.log(JSON.stringify(runTape(tape, { intent }), null, 2));
+      return;
+    }
+    case "memory-recall": {
+      const { recallMemory } = await import("./memory/index.js");
+      const query = rest.join(" ").trim();
+      if (!query) usage();
+      console.log(
+        JSON.stringify(
+          recallMemory(rootDir, query).map((h) => ({
+            id: h.record.id,
+            harmonic: h.harmonic,
+            score: Number(h.score.toFixed(3)),
+            depth: h.record.depth,
+            detail: h.record.detail,
+          })),
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    case "memory-add": {
+      const { ingestMemory } = await import("./memory/index.js");
+      const kind = flagValue(rest, "--kind") ?? "note";
+      const outcomeRaw = flagValue(rest, "--outcome") ?? "info";
+      const outcome =
+        outcomeRaw === "success" || outcomeRaw === "failure" || outcomeRaw === "info" ? outcomeRaw : "info";
+      const detail = flagValue(rest, "--detail") ?? rest.filter((a) => !a.startsWith("--")).join(" ");
+      if (!detail) usage();
+      console.log(JSON.stringify(ingestMemory(rootDir, { kind, outcome, detail }), null, 2));
+      return;
+    }
     case "identity-enroll": {
       const id = flagValue(rest, "--id");
       const displayName = flagValue(rest, "--name");
@@ -146,6 +416,32 @@ function flagValue(args: string[], flag: string): string | undefined {
   const idx = args.indexOf(flag);
   if (idx === -1) return undefined;
   return args[idx + 1];
+}
+
+function parseKind(raw: string): ThoughtKind {
+  if (
+    raw === "muse" ||
+    raw === "think" ||
+    raw === "rehearse" ||
+    raw === "decide" ||
+    raw === "free"
+  ) {
+    return raw;
+  }
+  return "muse";
+}
+
+function parseGym(raw: string): GymId {
+  if (
+    raw === "atelier" ||
+    raw === "observatory" ||
+    raw === "drill-yard" ||
+    raw === "gatehouse" ||
+    raw === "wilds"
+  ) {
+    return raw;
+  }
+  return "atelier";
 }
 
 main(process.argv.slice(2)).catch((err) => {

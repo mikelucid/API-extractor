@@ -1,10 +1,15 @@
 import type { DecisionAction } from "../decision/types.js";
+import {
+  MathematicalThinkingAI,
+  type MathDecision,
+} from "../decision/math-thinking.js";
 
 export interface ThoughtPlan {
   reasoning: string;
   action: DecisionAction;
   steps: string[];
   risk: number;
+  mathTrace?: string[];
 }
 
 export interface CriticResult {
@@ -43,6 +48,7 @@ export function thinkInitial(input: {
   text: string;
   threatSafeRatio: number;
   constitutionAllowed: boolean;
+  math?: MathDecision;
 }): ThoughtPlan {
   if (!input.constitutionAllowed) {
     return {
@@ -53,15 +59,52 @@ export function thinkInitial(input: {
     };
   }
   try {
+    if (input.math) {
+      return planFromMath(input.math, input.text);
+    }
     return parseOrBuildPlan(input);
   } catch {
-    // AgentBrain._parse_json fallback → HOLD (Coding agent PDF)
     return {
       reasoning: "Fallback due to parsing error.",
       action: "hold",
       steps: ["audit parse failure", "hold session"],
       risk: input.threatSafeRatio > 1 ? 0.6 : 0.2,
     };
+  }
+}
+
+/** Map explicit math decision into a supervisor thought plan (self-coding path). */
+export function planFromMath(math: MathDecision, text: string): ThoughtPlan {
+  const action = mapMathAction(math.best.action.id);
+  return {
+    reasoning: [
+      `Mathematical Thinking AI on "${text.slice(0, 60)}":`,
+      `R_now=${math.currentRatio.toFixed(3)}; chose ${math.best.action.id}`,
+      `E[R]=${math.best.expectedRatio.toFixed(3)} via m:=m+a·Δt, R:=P_t/P_s`,
+      math.trace.slice(-3).join(" | "),
+    ].join(" "),
+    action,
+    steps: [
+      "explicit math simulate horizon",
+      ...math.best.steps.map((s) => s.equation),
+      action === "contain" ? "SIGTERM → quarantine" : action === "escalate" ? "owner notify" : "continue watch",
+    ],
+    risk: Math.min(1, math.currentRatio / 3),
+    mathTrace: math.trace,
+  };
+}
+
+function mapMathAction(id: string): DecisionAction {
+  switch (id) {
+    case "contain":
+      return "contain";
+    case "escalate":
+      return "escalate";
+    case "hold":
+    case "toward_safe":
+      return "hold";
+    default:
+      return "hold";
   }
 }
 
@@ -121,7 +164,6 @@ export function refinePlan(plan: ThoughtPlan, critic: CriticResult): ThoughtPlan
 export function chooseBestAction(
   candidates: Array<{ action: DecisionAction; predictedRatio: number }>,
 ): DecisionAction {
-  // Prefer lowest future threat ratio; tie-break hold > escalate > contain
   const ranked = [...candidates].sort((a, b) => {
     if (a.predictedRatio !== b.predictedRatio) return a.predictedRatio - b.predictedRatio;
     const order: Record<DecisionAction, number> = { hold: 0, escalate: 1, contain: 2 };
@@ -130,10 +172,7 @@ export function chooseBestAction(
   return ranked[0]?.action ?? "hold";
 }
 
-export function predictFutureRatio(
-  current: number,
-  action: DecisionAction,
-): number {
+export function predictFutureRatio(current: number, action: DecisionAction): number {
   switch (action) {
     case "contain":
       return current * 0.35;
@@ -149,7 +188,13 @@ export function predictFutureRatio(
   }
 }
 
+/**
+ * Self-coding thought loop: Mathematical Thinking AI (explicit equations)
+ * seeds the plan; critic + lookahead refine.
+ */
 export class ThoughtLoop {
+  readonly mathAI = new MathematicalThinkingAI();
+
   constructor(
     private readonly critic = new LightweightCritic(),
     private readonly maxRefinements = 3,
@@ -159,13 +204,26 @@ export class ThoughtLoop {
     text: string;
     threatSafeRatio: number;
     constitutionAllowed: boolean;
-  }): { plan: ThoughtPlan; refinements: number; critic: CriticResult } {
-    let plan = thinkInitial(input);
+    /** Optional telemetry seeds for MathRasterizer before decide. */
+    telemetry?: Array<{ kind: "safe" | "threat" | "spawn" | "breach" | "escape"; intensity?: number }>;
+  }): { plan: ThoughtPlan; refinements: number; critic: CriticResult; math?: MathDecision } {
+    if (input.telemetry) {
+      for (const t of input.telemetry) {
+        this.mathAI.ingestTelemetry(t.kind, t.intensity ?? 0.8);
+      }
+    } else {
+      // Seed from threatSafeRatio so math path always has a cloud to reason over.
+      if (input.threatSafeRatio >= 1.5) this.mathAI.ingestTelemetry("threat", 0.95);
+      else if (input.threatSafeRatio >= 1.0) this.mathAI.ingestTelemetry("spawn", 0.7);
+      else this.mathAI.ingestTelemetry("safe", 0.5);
+    }
+
+    const math = this.mathAI.decide(2);
+    let plan = thinkInitial({ ...input, math });
     let refinements = 0;
     let critique = this.critic.evaluate(plan);
     while (!critique.satisfied && refinements < this.maxRefinements) {
       plan = refinePlan(plan, critique);
-      // Lookahead: optionally flip to safer action
       const candidates: DecisionAction[] = ["hold", "escalate", "contain"];
       const best = chooseBestAction(
         candidates.map((action) => ({
@@ -174,11 +232,15 @@ export class ThoughtLoop {
         })),
       );
       if (best !== plan.action && input.threatSafeRatio < 2) {
-        plan = { ...plan, action: best, reasoning: `${plan.reasoning} Lookahead chose ${best}.` };
+        plan = {
+          ...plan,
+          action: best,
+          reasoning: `${plan.reasoning} Lookahead chose ${best}.`,
+        };
       }
       critique = this.critic.evaluate(plan);
       refinements += 1;
     }
-    return { plan, refinements, critic: critique };
+    return { plan, refinements, critic: critique, math };
   }
 }

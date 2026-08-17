@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Rootv2 compiled thought tape (generated, owner-local)
+.rootv2/
+

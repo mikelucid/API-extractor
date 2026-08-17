@@ -126,3 +126,33 @@ export function evaluateConstitution(request: ConstitutionRequest): Constitution
     }
   }
 }
+
+export type IntentDecision =
+  | { allowed: true; reason: string }
+  | { allowed: false; code: "constitution_block"; reason: string };
+
+export function serializeConstitutionRules(): Array<{
+  code: string;
+  pattern: string;
+  flags: string;
+  reason: string;
+}> {
+  return DENY_PATTERNS.map((rule) => ({
+    code: rule.intent,
+    pattern: rule.re.source,
+    flags: rule.re.flags,
+    reason: rule.reason,
+  }));
+}
+
+export function evaluateIntent(text: string): IntentDecision {
+  const input = text.trim();
+  if (!input) {
+    return { allowed: false, code: "constitution_block", reason: "Empty intent is not actionable." };
+  }
+  const decision = evaluateConstitution({ text: input });
+  if (!decision.allowed) {
+    return { allowed: false, code: "constitution_block", reason: decision.reason };
+  }
+  return { allowed: true, reason: decision.reason };
+}

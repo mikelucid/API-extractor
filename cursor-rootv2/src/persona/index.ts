@@ -40,3 +40,22 @@ export function assertValidPersona(config: PersonaConfig): void {
     throw new Error("Persona tenure must reflect mature institutional judgment");
   }
 }
+
+export const FORBIDDEN_PERSONA_FLAGS = ["boredom", "young_obstinance", "young-obstinance"] as const;
+
+export type PersonaLoadResult =
+  | { ok: true; preamble: string }
+  | { ok: false; error: string };
+
+export function loadPersona(config: { preamble?: string; flags?: Record<string, boolean> } = {}): PersonaLoadResult {
+  const flags = config.flags ?? {};
+  for (const [key, enabled] of Object.entries(flags)) {
+    if (enabled && (FORBIDDEN_PERSONA_FLAGS as readonly string[]).includes(key)) {
+      return {
+        ok: false,
+        error: `Forbidden persona flag "${key}" — Rootv2 rejects boredom and young-obstinance modes.`,
+      };
+    }
+  }
+  return { ok: true, preamble: config.preamble?.trim() || PERSONA_PREAMBLE };
+}

@@ -1,5 +1,5 @@
 import { appendFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { auditLogPath, auditPrettyPath } from "../paths.js";
 
 export type AuditEventKind =
@@ -187,4 +187,51 @@ function formatPretty(event: AuditEvent): string {
       return `[unknown] ${JSON.stringify(_never)}`;
     }
   }
+}
+
+const REDACT_KEYS = new Set(["identityPayload", "secret", "privateKey", "payload"]);
+
+export type LooseAuditEvent = {
+  type: string;
+  at?: string;
+  [key: string]: unknown;
+};
+
+function redactLoose(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactLoose);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = REDACT_KEYS.has(k) ? "[redacted]" : redactLoose(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/** Compatibility writer used by the thought-tape / harmonic session path. */
+export function appendAudit(dataDir: string, event: LooseAuditEvent): LooseAuditEvent {
+  mkdirSync(dataDir, { recursive: true });
+  const stamped: LooseAuditEvent = { ...event, at: event.at ?? new Date().toISOString() };
+  const safe = redactLoose(stamped) as LooseAuditEvent;
+  const jsonl = join(dataDir, "audit.jsonl");
+  const text = join(dataDir, "audit.txt");
+  appendFileSync(jsonl, `${JSON.stringify(safe)}\n`, "utf8");
+  appendFileSync(
+    text,
+    `[${safe.at}] ${safe.type}${safe.rule ? ` rule=${String(safe.rule)}` : ""}${
+      safe.action ? ` action=${String(safe.action)}` : ""
+    }${safe.sessionId ? ` session=${String(safe.sessionId)}` : ""}\n`,
+    "utf8",
+  );
+  return safe;
+}
+
+export function readAuditJsonl(dataDir: string): LooseAuditEvent[] {
+  const jsonl = join(dataDir, "audit.jsonl");
+  if (!existsSync(jsonl)) return [];
+  return readFileSync(jsonl, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as LooseAuditEvent);
 }

@@ -2,7 +2,7 @@
 
 Local **safety supervisor** for the owner's machine. Watches allowlisted agents, evaluates a constitution gate, contains rogue sessions, stores structured datasets (agents / memory / encrypted identity), and leaves human-readable owner audits.
 
-This package is intentionally separate from the CertForge lab app.
+This package is intentionally separate from the CertForge lab app. PHP/Laravel domain folders that follow the same theory documents live in [`../server/`](../server/).
 
 ## Non-goals
 
@@ -22,12 +22,10 @@ npm run typecheck
 CLI (after `npm run build`, or via `npm run cli -- <cmd>`):
 
 ```bash
+npm run cli -- think --scenario drift
+npm run cli -- muse --steps 5
+npm run cli -- rehearse --count 5 --think --pace 1200
 npm run cli -- status
-npm run cli -- gate "Diagnose the local agent session"
-npm run cli -- agent-register --name coder --argv "node ./agents/coder.js"
-npm run cli -- agents
-npm run cli -- install --dry-run
-npm run cli -- uninstall --dry-run
 ```
 
 On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **user-domain** LaunchAgent under `~/Library/LaunchAgents` and data under `~/Library/Application Support/CursorRootv2/`.
@@ -52,7 +50,9 @@ Fixture seeds live in `src/datasets/fixtures.ts` for tests and rehearsal.
 
 ### Decision upgrade (from DeepSeek extracts)
 
-See [`docs/UPGRADE_BRIEF.md`](./docs/UPGRADE_BRIEF.md). Added local router, tool catalog (optional SD stub), provider fallback/circuit breaker, live threat/safe ratio, quantized swing hysteresis, thought–plan–critique loop, and escalation gate. Memory lessons restore optional `rating` / `decisionRatio`.
+See [`docs/UPGRADE_BRIEF.md`](./docs/UPGRADE_BRIEF.md), [`docs/NEURAL_RASTER_RATIO.md`](./docs/NEURAL_RASTER_RATIO.md), [`docs/MATH_THINKING_AI.md`](./docs/MATH_THINKING_AI.md), [`docs/ART_FROM_MATH.md`](./docs/ART_FROM_MATH.md), and [`docs/DECENTRALIZED_LLM_NOTES.md`](./docs/DECENTRALIZED_LLM_NOTES.md).
+
+Added local router, tool catalog (optional SD stub), provider fallback/circuit breaker, **grid live rasterizer + pure-TS MLP probability-ratio decisions**, **Mathematical Thinking AI** (explicit centroid/covariance/Gaussian \(R\) + horizon simulate), quantized swing hysteresis, thought–plan–critique loop, escalation gate, and local Interaction/Wire loggers (UUID + domain; **no** torrent/DHT). Memory lessons restore optional `rating` / `decisionRatio`.
 
 ## Identity
 
@@ -61,3 +61,15 @@ Friend-gated resolve only. Mutual friends can read allowed fields; non-friends a
 ## Sandbox
 
 Ephemeral workdirs with blocked path prefixes. Capability is labeled honestly in audits (`cwd+env jail`); this is not claimed to be unbreakable.
+
+## Thought pipelines + harmonic memory (merged from this branch)
+
+Compile alternate think orders into `.rootv2/pipelines/` (persona + constitution always first). Memory read/write uses resonance (deepen) and dissonance (counterpoint links).
+
+```bash
+npm run cli -- compile --pipeline remember
+npm run cli -- tape --intent "diagnose local agent"
+npm run cli -- memory-add --kind incident --outcome success --detail "contained disallowed host"
+npm run cli -- memory-recall "disallowed host"
+```
+

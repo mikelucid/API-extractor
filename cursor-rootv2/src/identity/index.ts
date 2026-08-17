@@ -47,3 +47,41 @@ export class IdentityVault {
     } as const;
   }
 }
+
+export const IDENTITY_PUBLIC_API = ["enrollIdentity", "addFriend", "resolveIdentity"] as const;
+
+export type IdentityFields = { displayName: string; note?: string };
+
+function vaultFor(dataDir: string): IdentityVault {
+  const passphrase = process.env.ROOTV2_IDENTITY_KEY ?? "dev-only-passphrase";
+  return new IdentityVault(new IdentityDatasetStore(passphrase, dataDir), new AuditLog({ rootDir: dataDir }));
+}
+
+export function enrollIdentity(dataDir: string, id: string, fields: IdentityFields): void {
+  vaultFor(dataDir).enroll({
+    id,
+    consent: "owner_added",
+    fields: {
+      displayName: fields.displayName,
+      labels: [],
+      ...(fields.note ? { notes: fields.note } : {}),
+    },
+  });
+}
+
+export function addFriend(dataDir: string, a: string, b: string): void {
+  vaultFor(dataDir).addFriendship(a, b);
+}
+
+export type ResolveResult = { ok: true; fields: IdentityFields } | { ok: false; reason: string };
+
+export function resolveIdentity(dataDir: string, viewerId: string, subjectId: string): ResolveResult {
+  const result = vaultFor(dataDir).resolve(viewerId, subjectId, ["displayName", "notes"]);
+  if (!result.allowed || !result.data) {
+    return { ok: false, reason: result.reason };
+  }
+  return {
+    ok: true,
+    fields: { displayName: result.data.displayName ?? subjectId, ...(result.data.notes ? { note: result.data.notes } : {}) },
+  };
+}

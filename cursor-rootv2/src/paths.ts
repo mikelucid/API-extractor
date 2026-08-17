@@ -47,3 +47,15 @@ export function agentRegistryPath(root = applicationSupportDir()): string {
 export function sandboxWorkRoot(root = applicationSupportDir()): string {
   return join(root, "sandbox");
 }
+
+export const APP_DIR_NAME = APP_NAME;
+export const defaultDataDir = applicationSupportDir;
+export const COMPILED_DIR_NAME = ".rootv2";
+
+export function compiledRoot(dataDir: string): string {
+  return join(dataDir, COMPILED_DIR_NAME);
+}
+
+export function compiledSequenceDir(dataDir: string): string {
+  return join(compiledRoot(dataDir), "sequence");
+}
