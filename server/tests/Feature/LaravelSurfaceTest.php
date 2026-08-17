@@ -31,10 +31,11 @@ final class LaravelSurfaceTest extends TestCase
     {
         $bindings = (new Rootv2ServiceProvider())->register();
         $this->assertArrayHasKey(\App\MorphicMemory\MorphicMemoryRegion::class, $bindings);
-        $this->assertArrayHasKey(\App\CognitiveFabric\CognitiveFabric::class, $bindings);
+        $this->assertArrayHasKey(\App\Supervisor\Kernel::class, $bindings);
         $status = (new StatusController())->show();
-        $this->assertSame(128, $status['fabric_cores']);
-        $this->assertSame(29.0, $status['pricing_floor']);
+        $this->assertSame(128, $status['fabricCores']);
+        $this->assertSame(29.0, $status['pricingFloor']);
         $this->assertFalse($status['decentral']->torrent);
+        $this->assertSame('institutional', $status['persona']);
     }
 }

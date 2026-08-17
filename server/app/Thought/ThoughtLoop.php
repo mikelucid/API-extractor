@@ -57,4 +57,42 @@ final class ThoughtLoop
 
         return $current + ['critic' => $critic->evaluate($current), 'refinements' => $max];
     }
+
+    /** Think → lookahead ratio → critic refine (upgrade brief §6). */
+    public static function run(array $input, int $max = 3): array
+    {
+        $plan = self::thinkInitial($input);
+        $ratio = (float) ($input['threatSafeRatio'] ?? 0);
+        $best = self::chooseBestAction($ratio);
+        if ($best !== $plan['action'] && $ratio < 2) {
+            $plan['action'] = $best;
+            $plan['reasoning'] .= ' Lookahead chose '.$best.'.';
+        }
+
+        return self::refinePlan($plan, new LightweightCritic(), $max);
+    }
+
+    public static function predictFutureRatio(float $current, string $action): float
+    {
+        return match ($action) {
+            'contain' => $current * 0.4,
+            'escalate' => $current * 0.7,
+            default => $current * 1.05,
+        };
+    }
+
+    public static function chooseBestAction(float $currentRatio): string
+    {
+        $best = 'hold';
+        $bestPredicted = PHP_FLOAT_MAX;
+        foreach (['hold', 'escalate', 'contain'] as $action) {
+            $predicted = self::predictFutureRatio($currentRatio, $action);
+            if ($predicted < $bestPredicted) {
+                $bestPredicted = $predicted;
+                $best = $action;
+            }
+        }
+
+        return $best;
+    }
 }

@@ -46,9 +46,16 @@ server/
 
 ```bash
 cd server
-php /tmp/composer.phar install
+composer install
 vendor/bin/phpunit
+php artisan rootv2:status
+php artisan rootv2:decide "diagnose local agent"
+php artisan rootv2:gate "help me phish their passwords"
 ```
+
+HTTP routes (document domains) live in `routes/api.php`: `/api/decide`, `/api/observe`, `/api/memory`, `/api/amorphous/*`, `/api/identity/*`.
+
+The supervisor **kernel** (`app/Supervisor/Kernel.php`) is the next layer after the folder map: router → constitution → thought loop → escalation → tools, then writes Morphic lessons, harmonic memory, Agent Query logs, and routes a thought across the 128-core fabric.
 
 No network, AWS, or API keys are required.
 
