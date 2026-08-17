@@ -21,3 +21,14 @@ export function launchAgentsDir(home = os.homedir()): string {
 export function launchAgentPlistPath(home = os.homedir()): string {
   return path.join(launchAgentsDir(home), `${LAUNCH_AGENT_LABEL}.plist`)
 }
+
+/** Owner-local compiled thought tape (dotfolder like .git — not covert OS hiding). */
+export const COMPILED_DIR_NAME = '.rootv2'
+
+export function compiledRoot(dataDir: string): string {
+  return path.join(dataDir, COMPILED_DIR_NAME)
+}
+
+export function compiledSequenceDir(dataDir: string): string {
+  return path.join(compiledRoot(dataDir), 'sequence')
+}

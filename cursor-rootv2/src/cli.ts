@@ -7,7 +7,9 @@ import { appendAudit, readAuditJsonl } from './audit/index.ts'
 import { createSession, handleSessionEvent } from './session/index.ts'
 import { rehearseScript } from './sandbox/index.ts'
 import { addFriend, enrollIdentity, resolveIdentity } from './identity/index.ts'
+import { compileThoughtTape, loadThoughtTape } from './compile/index.ts'
 import { planInstall, planUninstall } from './install/macos.ts'
+import { runTape } from './runtime/vm.ts'
 import { defaultDataDir } from './paths.ts'
 
 function print(msg: string): void {
@@ -60,7 +62,35 @@ export async function runCli(argv: string[]): Promise<void> {
         ),
       )
       appendAudit(dataDir, { type: 'init', action: 'accept_constitution' })
+      compileThoughtTape(dataDir)
       print(`Initialized data dir: ${dataDir}`)
+      print(`Compiled thought tape: ${path.join(dataDir, '.rootv2')}`)
+      return
+    }
+    case 'compile': {
+      const compiled = compileThoughtTape(dataDir)
+      print(
+        JSON.stringify(
+          {
+            root: compiled.root,
+            frames: compiled.frames.map((f) => ({ seq: f.seq, id: f.id, op: f.op, hash: f.hash.slice(0, 12) })),
+            runtimePath: compiled.runtimePath,
+          },
+          null,
+          2,
+        ),
+      )
+      return
+    }
+    case 'think': {
+      let tape = loadThoughtTape(dataDir)
+      if (!tape) tape = compileThoughtTape(dataDir) && loadThoughtTape(dataDir)
+      if (!tape) fail('compile produced no tape')
+      const intentIdx = rest.indexOf('--intent')
+      const intent = intentIdx >= 0 ? rest[intentIdx + 1] : stripMeta(rest).join(' ') || undefined
+      const result = runTape(tape, { intent })
+      print(JSON.stringify(result, null, 2))
+      if (result.decision?.allowed === false) process.exitCode = 1
       return
     }
     case 'evaluate': {
@@ -151,6 +181,7 @@ export async function runCli(argv: string[]): Promise<void> {
     }
     case 'status': {
       const accepted = fs.existsSync(path.join(dataDir, 'constitution-accept.json'))
+      const tape = loadThoughtTape(dataDir)
       print(
         JSON.stringify(
           {
@@ -158,6 +189,9 @@ export async function runCli(argv: string[]): Promise<void> {
             constitutionAccepted: accepted,
             allowlist: loadAllowlist(dataDir).entries.length,
             auditEvents: readAuditJsonl(dataDir).length,
+            thoughtTape: tape
+              ? { frames: tape.frames.length, dir: path.join(dataDir, '.rootv2') }
+              : null,
           },
           null,
           2,
@@ -195,7 +229,7 @@ export async function runCli(argv: string[]): Promise<void> {
     case 'help':
     case undefined:
       print(`cursor-rootv2 <command>
-  init | evaluate <text> | allowlist | report-event | rehearse
+  init | compile | think [--intent text] | evaluate <text> | allowlist | report-event | rehearse
   identity | status | install [--dry-run] | uninstall [--dry-run] [--purge-data]
 Env: CURSOR_ROOTV2_DATA_DIR or --data-dir <path>`)
       return

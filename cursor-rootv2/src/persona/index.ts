@@ -10,7 +10,9 @@ export type PersonaConfig = {
   flags?: Record<string, boolean>
 }
 
-const FORBIDDEN_FLAGS = new Set(['boredom', 'young_obstinance', 'young-obstinance'])
+export const FORBIDDEN_PERSONA_FLAGS = ['boredom', 'young_obstinance', 'young-obstinance'] as const
+
+const FORBIDDEN_FLAGS = new Set<string>(FORBIDDEN_PERSONA_FLAGS)
 
 export type PersonaLoadResult =
   | { ok: true; preamble: string }

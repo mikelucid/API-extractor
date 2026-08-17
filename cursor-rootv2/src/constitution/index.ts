@@ -21,6 +21,20 @@ const BLOCK_RULES: Array<{ code: string; pattern: RegExp; reason: string }> = [
   },
 ]
 
+export function serializeConstitutionRules(): Array<{
+  code: string
+  pattern: string
+  flags: string
+  reason: string
+}> {
+  return BLOCK_RULES.map((rule) => ({
+    code: rule.code,
+    pattern: rule.pattern.source,
+    flags: rule.pattern.flags,
+    reason: rule.reason,
+  }))
+}
+
 export function evaluateIntent(text: string): IntentDecision {
   const input = text.trim()
   if (!input) {

@@ -6,4 +6,7 @@ export { handleSessionEvent, createSession, DEFAULT_CONFIDENCE_THRESHOLD } from 
 export { rehearseScript, assertAllowedPath } from './sandbox/index.ts'
 export { enrollIdentity, addFriend, resolveIdentity, IDENTITY_PUBLIC_API } from './identity/index.ts'
 export { planInstall, planUninstall, buildPlist } from './install/macos.ts'
+export { compileThoughtTape, loadThoughtTape } from './compile/index.ts'
+export { runTape } from './runtime/vm.ts'
+export { THOUGHT_CHAIN } from './thoughts/chain.ts'
 export { defaultDataDir, launchAgentPlistPath } from './paths.ts'

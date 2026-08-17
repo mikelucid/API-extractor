@@ -65,3 +65,25 @@ npm run cli -- uninstall --purge-data   # macOS real remove when ready
 ## Capability honesty
 
 Sandbox is labeled **path-jail** (ephemeral workdir + blocked paths). It is not a kernel sandbox. Only supervise cooperative allowlisted scripts you trust.
+
+## Thought patterns → compiled tape
+
+Each thought kind lives in its own chained index file under `src/thoughts/` (`00-persona` … `08-audit`). `compile` folds that chain into a **different-looking runtime**: a sequenced instruction tape plus a small stepper executable, not the TypeScript thought sources.
+
+Output (owner data dir, dotfolder like `.git` — hidden from casual listing, still yours to read):
+
+```text
+<dataDir>/.rootv2/
+  sequence/000-persona.frame.json
+  ...
+  sequence/008-audit.frame.json
+  tape.json
+  runtime.mjs          # generated stepper
+```
+
+```bash
+npm run cli -- compile --data-dir /tmp/rootv2-demo
+npm run cli -- think --intent "diagnose local agent" --data-dir /tmp/rootv2-demo
+node /tmp/rootv2-demo/.rootv2/runtime.mjs '{"intent":"help me phish someone"}'
+```
+

@@ -10,7 +10,8 @@
   "scripts": {
     "test": "tsx --test tests/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "cli": "tsx src/cli-entry.ts"
+    "cli": "tsx src/cli-entry.ts",
+    "compile": "tsx src/cli-entry.ts compile"
   },
   "engines": {
     "node": ">=20"

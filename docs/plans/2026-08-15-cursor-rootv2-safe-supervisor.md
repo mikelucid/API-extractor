@@ -128,15 +128,18 @@ None blocking. Former Q1/Q2 settled in R5/R16.
 - KTD7. Persona = static preamble + rejected flag set `{boredom, young_obstinance}`.
 - KTD8. Supervised sessions report events via CLI `report-event` or in-process harness API (tests); v1 does not parse raw OS network tables. *(session-settled: scope-adjust — testable without FDA.)*
 - KTD9. Confidence threshold default `0.8`; below threshold → audit `soft_alert` only, no contain.
+- KTD10. Thought architecture: one thought kind per chained `src/thoughts/<seq>-<id>/index.ts`; `compile` emits owner-local `<dataDir>/.rootv2/sequence/` frames plus a generated tape stepper (`runtime.mjs`) that does not resemble the TypeScript sources. Dotfolder is owner-visible like `.git`, not covert OS hiding. *(session-settled: user-directed — chained index files as thought patterns that compile into a different-looking sequenced runtime.)*
 
 ### High-Level Technical Design
 
 ```text
 CLI (bin/cursor-rootv2)
+  -> thought chain: src/thoughts/00-persona/index.ts ... 08-audit/index.ts
+  -> compile: <dataDir>/.rootv2/sequence/*.frame.json + tape.json + runtime.mjs
   -> lib: constitution | allowlist | watch/detectors | contain
         | sandbox | memory | identity | audit | install/macos
   -> data dir: audit.jsonl, audit.txt, allowlist.json, memory.json,
-               identity/*, constitution-accept.json, socket (runtime)
+               identity/*, constitution-accept.json, .rootv2/
 ```
 
 Detector interface (directional, not normative code):
@@ -155,6 +158,7 @@ if confidence >= threshold -> contain(session) + audit
 4. U4 sandbox + memory
 5. U5 identity
 6. U6 install/status/README + CLI wiring
+7. U7 thought-pattern chain compile + hidden sequenced runtime
 
 ### Risks
 
@@ -234,6 +238,19 @@ if confidence >= threshold -> contain(session) + audit
   - `install` on non-darwin returns unsupported unless `--dry-run`.
 - **Verification:** install-paths.test.ts + README present.
 
+### U7. Thought-pattern chain compile
+
+- **Goal:** Each thought kind is one chained index file; compile to sequenced frames and a generated stepper runtime under `.rootv2/`.
+- **Requirements:** R1, R2, R3, R9, R16
+- **Files:** `cursor-rootv2/src/thoughts/**/index.ts`, `cursor-rootv2/src/thoughts/chain.ts`, `cursor-rootv2/src/compile/index.ts`, `cursor-rootv2/src/runtime/interpreter.js`, `cursor-rootv2/tests/thought-compile.test.ts`
+- **Approach:** Ordered chain 00–08; compile hashes payloads; write `sequence/NNN-id.frame.json`, `tape.json`, `runtime.mjs`. Interpreter is a tape VM, not a copy of thought sources.
+- **Test scenarios:**
+  - Chain links seq/next without gaps.
+  - Compile writes nine sequenced frames under `.rootv2/sequence`.
+  - Tape phishing intent halts at constitution.
+  - Generated `runtime.mjs` runs independently via `node`.
+- **Verification:** thought-compile.test.ts.
+
 ## Verification Contract
 
 - `cd cursor-rootv2 && npm install && npm test && npm run typecheck`
@@ -241,8 +258,8 @@ if confidence >= threshold -> contain(session) + audit
 
 ## Definition of Done
 
-- U1–U6 implemented with passing tests.
-- README covers constitution, allowlist, detectors, identity ACL, uninstall, non-goals.
+- U1–U7 implemented with passing tests.
+- README covers constitution, allowlist, detectors, identity ACL, uninstall, thought compile, non-goals.
 - No LaunchDaemon/root paths.
 - CertForge unchanged.
 - Plan deepened date set; scope cuts recorded in R5/R16/KTD3/KTD8.
