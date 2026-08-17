@@ -3,10 +3,10 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import test from 'node:test'
-import { compileThoughtTape, loadThoughtTape } from '../src/compile/index.ts'
-import { runTape } from '../src/runtime/vm.ts'
-import { assertChainLinks, PIPELINES, pipelineChain, THOUGHT_CHAIN } from '../src/thoughts/chain.ts'
+import { test } from 'vitest'
+import { compileThoughtTape, loadThoughtTape } from '../src/compile/index.js'
+import { runTape } from '../src/runtime/vm.js'
+import { assertChainLinks, PIPELINES, pipelineChain, THOUGHT_CHAIN } from '../src/thoughts/chain.js'
 
 test('thought chain is one kind per index file and links in sequence', () => {
   assert.equal(THOUGHT_CHAIN.length, 9)

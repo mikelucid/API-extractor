@@ -1,5 +1,5 @@
-import { IDENTITY_PUBLIC_API } from '../../identity/index.ts'
-import type { ThoughtPattern } from '../types.ts'
+import { IDENTITY_PUBLIC_API } from '../../identity/index.js'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: friends-only, consent enroll. */
 export const thought: ThoughtPattern = {

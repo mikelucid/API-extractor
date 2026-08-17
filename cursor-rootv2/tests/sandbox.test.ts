@@ -1,43 +1,45 @@
-import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import test from 'node:test'
-import { loadMemory } from '../src/memory/index.ts'
-import { assertAllowedPath, rehearseScript } from '../src/sandbox/index.ts'
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { AuditLog } from "../src/audit/index.js";
+import { MemoryDataset } from "../src/datasets/memory-store.js";
+import { SandboxRunner, isBlockedPath } from "../src/sandbox/index.js";
 
-test('blocked home path fails closed and records memory failure', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-sand-'))
-  const homeSsh = path.join(os.homedir(), '.ssh', 'id_rsa')
-  const result = await rehearseScript({
-    dataDir: dir,
-    source: 'export default async () => {}',
-    declaredPaths: [homeSsh],
-  })
-  assert.equal(result.ok, false)
-  assert.match(result.error ?? '', /Path jail blocked/)
-  const memory = loadMemory(dir)
-  assert.equal(memory.records.at(-1)?.outcome, 'failure')
-})
+describe("sandbox rehearsal", () => {
+  it("fails closed when script claims blocked path", () => {
+    const root = mkdtempSync(join(tmpdir(), "rootv2-sbx-"));
+    const audit = new AuditLog({ rootDir: root });
+    const memory = new MemoryDataset(root);
+    const runner = new SandboxRunner(root, audit, memory);
+    const result = runner.run({
+      scriptBody: "cat /etc/passwd",
+      claimedPaths: ["/etc/passwd"],
+    });
+    expect(result.outcome).toBe("blocked");
+    expect(result.blockedPath).toBe("/etc/passwd");
+    expect(memory.list()).toHaveLength(0);
+  });
 
-test('workdir-local path succeeds', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-sand-'))
-  // declaredPaths checked before workdir exists in rehearse — use only script-internal checks
-  const result = await rehearseScript({
-    dataDir: dir,
-    source: `import fs from 'node:fs'; import path from 'node:path';
-export default async ({ workdir, assertAllowedPath }) => {
-  const p = path.join(workdir, 'out.txt');
-  assertAllowedPath(p);
-  fs.writeFileSync(p, 'ok');
-}`,
-  })
-  assert.equal(result.ok, true)
-  assert.equal(loadMemory(dir).records.at(-1)?.outcome, 'success')
-})
+  it("successful rehearsal writes memory without identity dump", () => {
+    const root = mkdtempSync(join(tmpdir(), "rootv2-sbx-ok-"));
+    const audit = new AuditLog({ rootDir: root });
+    const memory = new MemoryDataset(root);
+    const runner = new SandboxRunner(root, audit, memory);
+    const result = runner.run({
+      scriptBody: "echo hello",
+      claimedPaths: [],
+      title: "Safe echo",
+    });
+    expect(result.outcome).toBe("ok");
+    expect(result.memoryId).toBeTruthy();
+    const lesson = memory.list()[0];
+    expect(lesson?.title).toBe("Safe echo");
+    expect(JSON.stringify(lesson)).not.toMatch(/identityBody|password/);
+  });
 
-test('assertAllowedPath allows only workdir tree', () => {
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-work-'))
-  assert.doesNotThrow(() => assertAllowedPath(work, path.join(work, 'a.txt')))
-  assert.throws(() => assertAllowedPath(work, path.join(os.homedir(), '.ssh')))
-})
+  it("labels paths outside workdir as blocked", () => {
+    expect(isBlockedPath("/home/ubuntu/.ssh/id_rsa", "/tmp/reh-abc")).toBe(true);
+    expect(isBlockedPath("/tmp/reh-abc/out.txt", "/tmp/reh-abc")).toBe(false);
+  });
+});

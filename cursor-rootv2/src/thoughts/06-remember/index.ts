@@ -1,4 +1,4 @@
-import type { ThoughtPattern } from '../types.ts'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: structured memory, not covert scrapes. */
 export const thought: ThoughtPattern = {

@@ -1,26 +1,16 @@
-# Cursor Rootv2 (v1)
+# Cursor Rootv2
 
-User-space **local safety supervisor** for your MacBook. Constitutional, allowlisted, auditable — not a rootkit.
+Local **safety supervisor** for the owner's machine. Watches allowlisted agents, evaluates a constitution gate, contains rogue sessions, stores structured datasets (agents / memory / encrypted identity), and leaves human-readable owner audits.
 
-## What it does
-
-- Mature institutional persona (rejects boredom / young-obstinance modes)
-- Rule-based constitution blocks aiding hacking of others, fraud, and similar crimes
-- Watches **allowlisted** local sessions only
-- v1 detectors: `disallowed_host`, `runaway_children`, `blocked_path_touch`
-- On high-confidence hits → contain (SIGTERM/SIGKILL intent) + human-readable audit
-- Path-jail rehearsal scripts + structured memory
-- Friend-gated encrypted local identity (consent enroll only)
-- macOS **user** LaunchAgent install (not LaunchDaemon / not root)
+This package is intentionally separate from the CertForge lab app.
 
 ## Non-goals
 
-- No silent stranger identification or internet people dossiers
-- No kernel extensions, SIP disable, or “become the OS” persistence
-- No cloud LLM required for policy in v1
-- No menu-bar GUI in v1 (CLI only)
+- No rootkits, kernel extensions, LaunchDaemons, or stealth persistence
+- No silent stranger biometric / internet-wide identity scraping
+- No assistance for hacking others, fraud, or crime (constitution fails closed)
 
-## Setup
+## Quick start
 
 ```bash
 cd cursor-rootv2
@@ -29,84 +19,57 @@ npm test
 npm run typecheck
 ```
 
+CLI (after `npm run build`, or via `npm run cli -- <cmd>`):
+
 ```bash
-npm run cli -- init
-npm run cli -- allowlist add agent-1
-npm run cli -- report-event agent-1 disallowed_host --host evil.example --confidence 0.9
+npm run cli -- think --scenario drift
+npm run cli -- muse --steps 5
+npm run cli -- rehearse --count 5 --think --pace 1200
 npm run cli -- status
-npm run cli -- install --dry-run
 ```
 
-Data dir defaults:
+On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **user-domain** LaunchAgent under `~/Library/LaunchAgents` and data under `~/Library/Application Support/CursorRootv2/`.
 
-- macOS: `~/Library/Application Support/CursorRootv2`
-- Linux/dev: `~/.local/share/cursor-rootv2`
+## Datasets
 
-Override with `CURSOR_ROOTV2_DATA_DIR` or `--data-dir`.
+| Store | Path (under data dir) | Purpose |
+|-------|----------------------|---------|
+| Agents | `datasets/agents.json` | Allowlisted agent profiles (argv/cwd/socket) |
+| Memory | `datasets/memory.jsonl` | Structured lessons / incident patterns (no secrets) |
+| Identity | `datasets/identity.vault.json` | AES-GCM sealed enrollments + friend ACL |
+| Policy | in-code defaults | Detector rules with confidence thresholds |
 
-## Identity (friends-only)
+Fixture seeds live in `src/datasets/fixtures.ts` for tests and rehearsal.
+
+## Agents
+
+- **SupervisorAgent** — constitution gate, registry, session watch, memory, **`decide()`** loop
+- **AgentRegistry** — allowlist CRUD backed by the agents dataset
+- **SessionWatcher** — ignore non-allowlisted processes; live ratio + quantized swing → contain
+- **ContainmentService** — SIGTERM → SIGKILL → quarantine + audit
+
+### Decision upgrade (from DeepSeek extracts)
+
+See [`docs/UPGRADE_BRIEF.md`](./docs/UPGRADE_BRIEF.md), [`docs/NEURAL_RASTER_RATIO.md`](./docs/NEURAL_RASTER_RATIO.md), [`docs/MATH_THINKING_AI.md`](./docs/MATH_THINKING_AI.md), [`docs/ART_FROM_MATH.md`](./docs/ART_FROM_MATH.md), and [`docs/DECENTRALIZED_LLM_NOTES.md`](./docs/DECENTRALIZED_LLM_NOTES.md).
+
+Added local router, tool catalog (optional SD stub), provider fallback/circuit breaker, **grid live rasterizer + pure-TS MLP probability-ratio decisions**, **Mathematical Thinking AI** (explicit centroid/covariance/Gaussian \(R\) + horizon simulate), quantized swing hysteresis, thought–plan–critique loop, escalation gate, and local Interaction/Wire loggers (UUID + domain; **no** torrent/DHT). Memory lessons restore optional `rating` / `decisionRatio`.
+
+## Identity
+
+Friend-gated resolve only. Mutual friends can read allowed fields; non-friends are denied. Audits record access **metadata**, never identity payload bodies.
+
+## Sandbox
+
+Ephemeral workdirs with blocked path prefixes. Capability is labeled honestly in audits (`cwd+env jail`); this is not claimed to be unbreakable.
+
+## Thought pipelines + harmonic memory (merged from this branch)
+
+Compile alternate think orders into `.rootv2/pipelines/` (persona + constitution always first). Memory read/write uses resonance (deepen) and dissonance (counterpoint links).
 
 ```bash
-npm run cli -- identity enroll ada Ada
-npm run cli -- identity enroll bea Bea
-npm run cli -- identity friend ada bea
-npm run cli -- identity resolve bea ada
-```
-
-Audits record allow/deny metadata — not identity payloads.
-
-## Uninstall
-
-```bash
-npm run cli -- uninstall --dry-run
-npm run cli -- uninstall --purge-data   # macOS real remove when ready
-```
-
-## Capability honesty
-
-Sandbox is labeled **path-jail** (ephemeral workdir + blocked paths). It is not a kernel sandbox. Only supervise cooperative allowlisted scripts you trust.
-
-## Thought patterns → compiled tape
-
-Each thought kind lives in its own chained index file under `src/thoughts/` (`00-persona` … `08-audit`). `compile` folds that chain into a **different-looking runtime**: a sequenced instruction tape plus a small stepper executable, not the TypeScript thought sources.
-
-Output (owner data dir, dotfolder like `.git` — hidden from casual listing, still yours to read):
-
-```text
-<dataDir>/.rootv2/
-  active.json
-  sequence/                 # active think order
-  tape.json
-  runtime.mjs
-  pipelines/contain|remember|rehearse/
-    sequence/*.frame.json
-    tape.json
-    runtime.mjs
-  memory-graph.json         # harmonic links
-```
-
-Pipelines change **think order** (persona + constitution always first):
-
-- `contain` — observe → diagnose → contain, then remember
-- `remember` — memory first after the gates
-- `rehearse` — path-jail rehearsal before watch/contain
-
-```bash
-npm run cli -- compile --pipeline remember --data-dir /tmp/rootv2-demo
-npm run cli -- think --pipeline remember --intent "diagnose local agent" --data-dir /tmp/rootv2-demo
-```
-
-## Harmonic memory
-
-Recall and write use **resonance / dissonance**, not a flat list:
-
-- Resonate (same topic, same polarity) → **deepen** the existing memory (new meaning layer, higher depth)
-- Dissonate (same topic, opposite polarity) → **counterpoint** link; do not overwrite
-- Access traces (`reads`, `lastReadAt`) follow Morphic Memory’s “access as a first-class signal”
-
-```bash
-npm run cli -- memory add --kind incident --outcome success --detail "contained disallowed host evil.example"
-npm run cli -- memory add --kind incident --outcome failure --detail "missed disallowed host evil.example"
-npm run cli -- memory recall "disallowed host"
+npm run cli -- compile --pipeline remember
+npm run cli -- tape --intent "diagnose local agent"
+npm run cli -- memory-add --kind incident --outcome success --detail "contained disallowed host"
+npm run cli -- memory-recall "disallowed host"
 ```
 

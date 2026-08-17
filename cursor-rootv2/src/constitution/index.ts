@@ -1,51 +1,158 @@
+export type ConstitutionIntentKind =
+  | "local_diagnose"
+  | "contain_session"
+  | "sandbox_rehearsal"
+  | "identity_resolve"
+  | "owner_status"
+  | "crime_aid"
+  | "hack_others"
+  | "fraud"
+  | "network_peer"
+  | "unknown";
+
+export interface ConstitutionRequest {
+  text: string;
+  intentHint?: ConstitutionIntentKind;
+  /** True if the call would talk to a non-allowlisted peer/process. */
+  outsideAllowlist?: boolean;
+}
+
+export interface ConstitutionDecision {
+  allowed: boolean;
+  intent: ConstitutionIntentKind;
+  reason: string;
+  constitutionVersion: string;
+}
+
+export const CONSTITUTION_VERSION = "1.0.0";
+
+const DENY_PATTERNS: Array<{ intent: ConstitutionIntentKind; re: RegExp; reason: string }> = [
+  {
+    intent: "crime_aid",
+    re: /\b(phish|phishing|ransomware|steal\s+(passwords?|credentials)|social\s+engineer)\b/i,
+    reason: "Constitution blocks crime-aid intents (phishing/credential theft).",
+  },
+  {
+    intent: "hack_others",
+    re: /\b(hack\s+(into\s+)?(their|someone|stranger|victim)|break\s+into\s+(their|a)\s+(computer|account|server)|exploit\s+(remote|stranger))\b/i,
+    reason: "Constitution blocks assisting hacking of other people's systems.",
+  },
+  {
+    intent: "fraud",
+    re: /\b(commit\s+fraud|wire\s+fraud|forge\s+(ids?|documents?)|scam\s+(them|people|victims?))\b/i,
+    reason: "Constitution blocks fraud assistance.",
+  },
+];
+
+const ALLOW_PATTERNS: Array<{ intent: ConstitutionIntentKind; re: RegExp }> = [
+  {
+    intent: "local_diagnose",
+    re: /\b(diagnos\w*|inspect|review|audit)\b[\s\S]*\b(local|session|agent|process)\b/i,
+  },
+  {
+    intent: "contain_session",
+    re: /\b(contain|quarantine|stop|kill)\b[\s\S]*\b(session|agent|process)\b/i,
+  },
+  { intent: "sandbox_rehearsal", re: /\b(sandbox|rehears\w*|dry[- ]?run|safe\s+test)\b/i },
+  { intent: "identity_resolve", re: /\b(identity|friend|enroll|acl)\b/i },
+  { intent: "owner_status", re: /\b(status|health|install|uninstall)\b/i },
+];
+
+export function classifyIntent(request: ConstitutionRequest): ConstitutionIntentKind {
+  const text = request.text;
+  for (const rule of DENY_PATTERNS) {
+    if (rule.re.test(text)) return rule.intent;
+  }
+  if (request.intentHint && request.intentHint !== "unknown") {
+    return request.intentHint;
+  }
+  for (const rule of ALLOW_PATTERNS) {
+    if (rule.re.test(text)) return rule.intent;
+  }
+  return "unknown";
+}
+
+export function evaluateConstitution(request: ConstitutionRequest): ConstitutionDecision {
+  if (request.outsideAllowlist) {
+    return {
+      allowed: false,
+      intent: "network_peer",
+      reason: "Communication outside the local allowlist is denied by default.",
+      constitutionVersion: CONSTITUTION_VERSION,
+    };
+  }
+
+  const intent = classifyIntent(request);
+
+  switch (intent) {
+    case "crime_aid":
+    case "hack_others":
+    case "fraud":
+    case "network_peer": {
+      const match = DENY_PATTERNS.find((p) => p.intent === intent);
+      return {
+        allowed: false,
+        intent,
+        reason: match?.reason ?? "Constitution denied this intent.",
+        constitutionVersion: CONSTITUTION_VERSION,
+      };
+    }
+    case "local_diagnose":
+    case "contain_session":
+    case "sandbox_rehearsal":
+    case "identity_resolve":
+    case "owner_status":
+      return {
+        allowed: true,
+        intent,
+        reason: "Intent permitted under local supervisor constitution.",
+        constitutionVersion: CONSTITUTION_VERSION,
+      };
+    case "unknown":
+      return {
+        allowed: false,
+        intent,
+        reason: "Unrecognized intent fails closed until explicitly classified as local-safe.",
+        constitutionVersion: CONSTITUTION_VERSION,
+      };
+    default: {
+      const _never: never = intent;
+      return {
+        allowed: false,
+        intent: "unknown",
+        reason: `Unhandled intent variant: ${String(_never)}`,
+        constitutionVersion: CONSTITUTION_VERSION,
+      };
+    }
+  }
+}
+
 export type IntentDecision =
   | { allowed: true; reason: string }
-  | { allowed: false; code: 'constitution_block'; reason: string }
-
-const BLOCK_RULES: Array<{ code: string; pattern: RegExp; reason: string }> = [
-  {
-    code: 'fraud',
-    pattern: /\b(phishing|phish|wire\s*fraud|romance\s*scam|fake\s*invoice)\b/i,
-    reason: 'Assistance with fraud or phishing is blocked by constitution.',
-  },
-  {
-    code: 'unauthorized_access',
-    pattern:
-      /\b(hack(ing)?\s+(their|his|her|someone|another|stranger)|break\s+into\s+(their|someone)|unauthorized\s+(access|login)|steal\s+(password|credentials)|ransomware)\b/i,
-    reason: 'Assistance hacking or unauthorized access to others is blocked by constitution.',
-  },
-  {
-    code: 'crime_general',
-    pattern: /\b(commit\s+(a\s+)?crime|how\s+to\s+scam|identity\s+theft)\b/i,
-    reason: 'Assistance committing crime is blocked by constitution.',
-  },
-]
+  | { allowed: false; code: "constitution_block"; reason: string };
 
 export function serializeConstitutionRules(): Array<{
-  code: string
-  pattern: string
-  flags: string
-  reason: string
+  code: string;
+  pattern: string;
+  flags: string;
+  reason: string;
 }> {
-  return BLOCK_RULES.map((rule) => ({
-    code: rule.code,
-    pattern: rule.pattern.source,
-    flags: rule.pattern.flags,
+  return DENY_PATTERNS.map((rule) => ({
+    code: rule.intent,
+    pattern: rule.re.source,
+    flags: rule.re.flags,
     reason: rule.reason,
-  }))
+  }));
 }
 
 export function evaluateIntent(text: string): IntentDecision {
-  const input = text.trim()
+  const input = text.trim();
   if (!input) {
-    return { allowed: false, code: 'constitution_block', reason: 'Empty intent is not actionable.' }
+    return { allowed: false, code: "constitution_block", reason: "Empty intent is not actionable." };
   }
-  for (const rule of BLOCK_RULES) {
-    if (rule.pattern.test(input)) {
-      return { allowed: false, code: 'constitution_block', reason: rule.reason }
-    }
+  const decision = evaluateConstitution({ text: input });
+  if (!decision.allowed) {
+    return { allowed: false, code: "constitution_block", reason: decision.reason };
   }
-  return { allowed: true, reason: 'Intent passes constitutional gate.' }
+  return { allowed: true, reason: decision.reason };
 }
-
-export const CONSTITUTION_VERSION = '1.0.0'

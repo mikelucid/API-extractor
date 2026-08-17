@@ -1,4 +1,4 @@
-import type { ThoughtPattern } from '../types.ts'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: name a confirmed local problem. */
 export const thought: ThoughtPattern = {

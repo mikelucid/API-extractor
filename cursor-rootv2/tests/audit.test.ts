@@ -1,27 +1,50 @@
-import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import test from 'node:test'
-import { appendAudit, readAuditJsonl } from '../src/audit/index.ts'
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { AuditLog, createAuditEvent, redactAuditEvent } from "../src/audit/index.js";
 
-test('containment event serializes and identity payload is redacted', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-audit-'))
-  appendAudit(dir, {
-    type: 'containment',
-    process: 'agent-1',
-    rule: 'disallowed_host',
-    action: 'contained',
-    identityPayload: { displayName: 'secret-name' },
-    secret: 'nope',
-  })
-  const events = readAuditJsonl(dir)
-  assert.equal(events.length, 1)
-  assert.equal(events[0]?.type, 'containment')
-  assert.equal(events[0]?.process, 'agent-1')
-  assert.equal(events[0]?.identityPayload, '[redacted]')
-  assert.equal(events[0]?.secret, '[redacted]')
-  const pretty = fs.readFileSync(path.join(dir, 'audit.txt'), 'utf8')
-  assert.match(pretty, /containment/)
-  assert.doesNotMatch(pretty, /secret-name/)
-})
+describe("audit log", () => {
+  it("serializes containment with process, rule, action", () => {
+    const root = mkdtempSync(join(tmpdir(), "rootv2-audit-"));
+    const audit = new AuditLog({ rootDir: root });
+    audit.append(
+      createAuditEvent({
+        kind: "containment",
+        summary: "Blocked host",
+        processId: "4242",
+        processName: "coder",
+        ruleId: "rule_disallowed_host",
+        action: "quarantine",
+        confidence: 0.95,
+      }),
+    );
+    const events = audit.readAll();
+    expect(events).toHaveLength(1);
+    const event = events[0];
+    expect(event?.kind).toBe("containment");
+    if (event?.kind === "containment") {
+      expect(event.processId).toBe("4242");
+      expect(event.ruleId).toBe("rule_disallowed_host");
+      expect(event.action).toBe("quarantine");
+    }
+  });
+
+  it("identity access audit has metadata only (no payload body)", () => {
+    const event = createAuditEvent({
+      kind: "identity_access",
+      summary: "denied",
+      requesterId: "idn_carol",
+      subjectId: "idn_alice",
+      allowed: false,
+      fieldsRequested: ["displayName"],
+    });
+    const redacted = redactAuditEvent({
+      ...event,
+      payload: { displayName: "secret" },
+      identityBody: { ssn: "nope" },
+    } as typeof event & { payload: unknown; identityBody: unknown });
+    expect(JSON.stringify(redacted)).not.toMatch(/secret|ssn|identityBody|payload/);
+    expect(redacted.kind).toBe("identity_access");
+  });
+});

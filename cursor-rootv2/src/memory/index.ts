@@ -8,8 +8,8 @@ import {
   type HarmonicKind,
   type HarmonyScore,
   type Signature,
-} from '../harmony/index.ts'
-import { compiledRoot } from '../paths.ts'
+} from '../harmony/index.js'
+import { compiledRoot } from '../paths.js'
 
 export type MemoryLayer = {
   at: string
@@ -158,7 +158,7 @@ export function ingestMemory(
     kind: partial.kind,
     outcome: partial.outcome,
     detail: partial.detail,
-    workdir: partial.workdir,
+    ...(partial.workdir ? { workdir: partial.workdir } : {}),
     signature: sig,
     layers: partial.meaning
       ? [{ at: now, meaning: partial.meaning, harmonic: 'neutral', score: 0 }]
@@ -191,7 +191,11 @@ export function ingestMemory(
   }
 
   saveStore(dataDir, store)
-  return { record, action: 'created', harmonic: match ? { ...match.score, peerId: match.record.id } : undefined }
+  return {
+    record,
+    action: "created",
+    ...(match ? { harmonic: { ...match.score, peerId: match.record.id } } : {}),
+  }
 }
 
 export function appendMemory(

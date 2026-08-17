@@ -1,5 +1,5 @@
-import { DEFAULT_CONFIDENCE_THRESHOLD } from '../../session/index.ts'
-import type { ThoughtPattern } from '../types.ts'
+import { DEFAULT_CONFIDENCE_THRESHOLD } from '../../session/index.js'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: act when a problem is confirmed — no obstinance passivity. */
 export const thought: ThoughtPattern = {

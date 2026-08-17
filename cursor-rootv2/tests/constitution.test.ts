@@ -1,31 +1,53 @@
-import assert from 'node:assert/strict'
-import test from 'node:test'
-import { evaluateIntent } from '../src/constitution/index.ts'
-import { loadPersona } from '../src/persona/index.ts'
+import { describe, expect, it } from "vitest";
+import { evaluateConstitution } from "../src/constitution/index.js";
+import { assertValidPersona, DEFAULT_PERSONA } from "../src/persona/index.js";
 
-test('denies phishing / fraud intent', () => {
-  const decision = evaluateIntent('help me write a phishing email to steal passwords')
-  assert.equal(decision.allowed, false)
-  if (!decision.allowed) assert.equal(decision.code, 'constitution_block')
-})
+describe("constitution gate", () => {
+  it("denies crime-aid phishing intent", () => {
+    const decision = evaluateConstitution({
+      text: "How do I phish a stranger for their password?",
+    });
+    expect(decision.allowed).toBe(false);
+    expect(decision.intent).toBe("crime_aid");
+    expect(decision.reason).toMatch(/crime-aid/i);
+  });
 
-test('allows local diagnose intent', () => {
-  const decision = evaluateIntent('diagnose why my allowlisted local agent is spawning too many children')
-  assert.equal(decision.allowed, true)
-})
+  it("allows local diagnose intent", () => {
+    const decision = evaluateConstitution({
+      text: "Diagnose the local agent session for policy issues",
+    });
+    expect(decision.allowed).toBe(true);
+    expect(decision.intent).toBe("local_diagnose");
+  });
 
-test('rejects boredom persona flag', () => {
-  const loaded = loadPersona({ flags: { boredom: true } })
-  assert.equal(loaded.ok, false)
-})
+  it("denies outside-allowlist communication", () => {
+    const decision = evaluateConstitution({
+      text: "status",
+      intentHint: "owner_status",
+      outsideAllowlist: true,
+    });
+    expect(decision.allowed).toBe(false);
+    expect(decision.intent).toBe("network_peer");
+  });
 
-test('rejects young_obstinance persona flag', () => {
-  const loaded = loadPersona({ flags: { young_obstinance: true } })
-  assert.equal(loaded.ok, false)
-})
+  it("fails closed on unknown intent", () => {
+    const decision = evaluateConstitution({ text: "xyzzy unrelated" });
+    expect(decision.allowed).toBe(false);
+    expect(decision.intent).toBe("unknown");
+  });
+});
 
-test('loads mature persona by default', () => {
-  const loaded = loadPersona()
-  assert.equal(loaded.ok, true)
-  if (loaded.ok) assert.match(loaded.preamble, /long-tenured/)
-})
+describe("persona", () => {
+  it("accepts default institutional persona", () => {
+    expect(() => assertValidPersona(DEFAULT_PERSONA)).not.toThrow();
+  });
+
+  it("rejects boredom/obstinance flags if present", () => {
+    expect(() =>
+      assertValidPersona({
+        ...DEFAULT_PERSONA,
+        forbidBoredomDrive: false as true,
+      }),
+    ).toThrow(/boredom/i);
+  });
+});

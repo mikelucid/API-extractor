@@ -1,7 +1,7 @@
-import { appendAudit } from '../audit/index.ts'
-import { isAllowlisted, loadAllowlist, type AllowlistStore } from '../allowlist/index.ts'
-import { containSession, type KillFn } from '../contain/index.ts'
-import { evaluateEvent, type Detection, type SessionEvent, type SessionState } from '../detect/index.ts'
+import { appendAudit } from '../audit/index.js'
+import { isAllowlisted, loadAllowlist, type AllowlistStore } from '../allowlist/index.js'
+import { containSession, type KillFn } from '../contain/index.js'
+import { evaluateEvent, type Detection, type SessionEvent, type SessionState } from '../detect/index.js'
 
 export const DEFAULT_CONFIDENCE_THRESHOLD = 0.8
 

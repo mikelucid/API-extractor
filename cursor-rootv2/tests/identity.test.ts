@@ -1,42 +1,70 @@
-import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import test from 'node:test'
-import { readAuditJsonl } from '../src/audit/index.ts'
-import {
-  addFriend,
-  enrollIdentity,
-  IDENTITY_PUBLIC_API,
-  resolveIdentity,
-} from '../src/identity/index.ts'
-import * as identityMod from '../src/identity/index.ts'
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { AuditLog } from "../src/audit/index.js";
+import { IdentityDatasetStore } from "../src/datasets/identity-store.js";
+import { IdentityVault } from "../src/identity/index.js";
 
-test('non-friend resolve is denied without payload in audit', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-id-'))
-  enrollIdentity(dir, 'a', { displayName: 'Ada' })
-  enrollIdentity(dir, 'b', { displayName: 'Bea' })
-  const result = resolveIdentity(dir, 'b', 'a')
-  assert.equal(result.ok, false)
-  const last = readAuditJsonl(dir).at(-1)
-  assert.equal(last?.action, 'deny')
-  assert.equal(last?.identityPayload, undefined)
-})
+describe("friend-gated identity", () => {
+  it("denies non-friend identity resolve", () => {
+    const root = mkdtempSync(join(tmpdir(), "rootv2-acl-"));
+    const audit = new AuditLog({ rootDir: root });
+    const store = new IdentityDatasetStore("pass", root);
+    const vault = new IdentityVault(store, audit);
 
-test('mutual friends can resolve fields', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-id-'))
-  enrollIdentity(dir, 'a', { displayName: 'Ada' })
-  enrollIdentity(dir, 'b', { displayName: 'Bea' })
-  addFriend(dir, 'a', 'b')
-  const result = resolveIdentity(dir, 'b', 'a')
-  assert.equal(result.ok, true)
-  if (result.ok) assert.equal(result.fields.displayName, 'Ada')
-})
+    vault.enroll({
+      id: "idn_alice",
+      consent: "self_enrolled",
+      fields: { displayName: "Alice", labels: [] },
+    });
+    vault.enroll({
+      id: "idn_carol",
+      consent: "owner_added",
+      fields: { displayName: "Carol", labels: [] },
+    });
 
-test('module does not export scrape/discover APIs', () => {
-  const keys = Object.keys(identityMod)
-  assert.ok(!keys.includes('scrape'))
-  assert.ok(!keys.includes('discover'))
-  assert.ok(!keys.includes('autoIdentify'))
-  assert.deepEqual([...IDENTITY_PUBLIC_API].sort(), ['addFriend', 'enrollIdentity', 'resolveIdentity'].sort())
-})
+    const result = vault.resolve("idn_carol", "idn_alice", ["displayName"]);
+    expect(result.allowed).toBe(false);
+    expect(result.data).toBeUndefined();
+
+    const access = audit.readAll().find((e) => e.kind === "identity_access");
+    expect(access?.kind).toBe("identity_access");
+    if (access?.kind === "identity_access") {
+      expect(access.allowed).toBe(false);
+      expect(JSON.stringify(access)).not.toMatch(/Alice/);
+    }
+  });
+
+  it("allows mutual friends to receive fields", () => {
+    const root = mkdtempSync(join(tmpdir(), "rootv2-acl-ok-"));
+    const audit = new AuditLog({ rootDir: root });
+    const store = new IdentityDatasetStore("pass", root);
+    const vault = new IdentityVault(store, audit);
+
+    vault.enroll({
+      id: "idn_alice",
+      consent: "self_enrolled",
+      fields: { displayName: "Alice", labels: ["lab"], notes: "ok" },
+    });
+    vault.enroll({
+      id: "idn_bob",
+      consent: "owner_added",
+      fields: { displayName: "Bob", labels: [] },
+    });
+    vault.addFriendship("idn_alice", "idn_bob");
+
+    const result = vault.resolve("idn_bob", "idn_alice", ["displayName", "labels"]);
+    expect(result.allowed).toBe(true);
+    expect(result.data?.displayName).toBe("Alice");
+    expect(result.data?.labels).toEqual(["lab"]);
+  });
+
+  it("does not expose stranger/auto-discover APIs", () => {
+    expect(IdentityVault.unsupportedApis()).toEqual({
+      scrapeInternetIdentities: false,
+      silentBiometricMatch: false,
+      autoDiscoverStrangers: false,
+    });
+  });
+});

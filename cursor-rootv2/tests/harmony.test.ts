@@ -2,9 +2,9 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import test from 'node:test'
-import { ingestMemory, recallMemory } from '../src/memory/index.ts'
-import { scoreHarmony, signatureOf } from '../src/harmony/index.ts'
+import { test } from 'vitest'
+import { ingestMemory, recallMemory } from '../src/memory/index.js'
+import { scoreHarmony, signatureOf } from '../src/harmony/index.js'
 
 test('same-topic same-outcome resonates', () => {
   const a = signatureOf({ kind: 'incident', outcome: 'success', detail: 'contained disallowed host evil.example' })

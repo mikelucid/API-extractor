@@ -1,14 +1,27 @@
-export { evaluateIntent, CONSTITUTION_VERSION } from './constitution/index.ts'
-export { loadPersona, PERSONA_PREAMBLE } from './persona/index.ts'
-export { appendAudit, readAuditJsonl } from './audit/index.ts'
-export { addAllowlistEntry, loadAllowlist, isAllowlisted } from './allowlist/index.ts'
-export { handleSessionEvent, createSession, DEFAULT_CONFIDENCE_THRESHOLD } from './session/index.ts'
-export { rehearseScript, assertAllowedPath } from './sandbox/index.ts'
-export { enrollIdentity, addFriend, resolveIdentity, IDENTITY_PUBLIC_API } from './identity/index.ts'
-export { planInstall, planUninstall, buildPlist } from './install/macos.ts'
-export { compileThoughtTape, loadThoughtTape, activePipeline } from './compile/index.ts'
-export { runTape } from './runtime/vm.ts'
-export { THOUGHT_CHAIN, PIPELINES, pipelineChain } from './thoughts/chain.ts'
-export { ingestMemory, recallMemory } from './memory/index.ts'
-export { scoreHarmony } from './harmony/index.ts'
-export { defaultDataDir, launchAgentPlistPath } from './paths.ts'
+export * from "./paths.js";
+export * from "./constitution/index.js";
+export * from "./persona/index.js";
+export * from "./audit/index.js";
+export * from "./datasets/index.js";
+export * from "./agents/index.js";
+export * from "./sandbox/index.js";
+export * from "./identity/index.js";
+export * from "./install/macos.js";
+export * from "./decision/index.js";
+export * from "./router/index.js";
+export * from "./tools/index.js";
+export * from "./fallback/index.js";
+export * from "./escalation/index.js";
+export * from "./thought/index.js";
+export * from "./logging/index.js";
+export * from "./rehearse/index.js";
+export * from "./art/index.js";
+export * from "./thoughts/incomplete-queue.js";
+export * from "./thoughtmon/index.js";
+export { addAllowlistEntry, loadAllowlist, isAllowlisted } from "./allowlist/index.js";
+export { handleSessionEvent, createSession, DEFAULT_CONFIDENCE_THRESHOLD } from "./session/index.js";
+export { compileThoughtTape, loadThoughtTape, activePipeline } from "./compile/index.js";
+export { runTape } from "./runtime/vm.js";
+export { THOUGHT_CHAIN, PIPELINES, pipelineChain } from "./thoughts/chain.js";
+export { ingestMemory, recallMemory } from "./memory/index.js";
+export { scoreHarmony } from "./harmony/index.js";

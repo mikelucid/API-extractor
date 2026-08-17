@@ -1,5 +1,5 @@
-import { FORBIDDEN_PERSONA_FLAGS, PERSONA_PREAMBLE } from '../../persona/index.ts'
-import type { ThoughtPattern } from '../types.ts'
+import { FORBIDDEN_PERSONA_FLAGS, PERSONA_PREAMBLE } from '../../persona/index.js'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: mature institutional stance. One kind, one file. */
 export const thought: ThoughtPattern = {

@@ -1,19 +1,26 @@
-import os from 'node:os'
-import path from 'node:path'
-import { defaultDataDir, LAUNCH_AGENT_LABEL, launchAgentPlistPath } from '../paths.ts'
+import { mkdirSync, writeFileSync, existsSync, rmSync, renameSync } from "node:fs";
+import { dirname } from "node:path";
+import {
+  applicationSupportDir,
+  launchAgentPlistPath,
+  LAUNCH_AGENT_LABEL,
+} from "../paths.js";
+import { AuditLog, createAuditEvent } from "../audit/index.js";
 
-export type InstallPlan = {
-  platform: NodeJS.Platform
-  supported: boolean
-  plistPath: string
-  dataDir: string
-  label: string
-  plistContents: string
+export interface InstallOptions {
+  home?: string;
+  dryRun?: boolean;
+  nodeBinary?: string;
+  entryScript?: string;
+  archiveData?: boolean;
 }
 
-export function buildPlist(opts: { programArgs: string[]; dataDir: string; label?: string }): string {
-  const label = opts.label ?? LAUNCH_AGENT_LABEL
-  const argsXml = opts.programArgs.map((a) => `    <string>${escapeXml(a)}</string>`).join('\n')
+export function renderLaunchAgentPlist(options: {
+  nodeBinary: string;
+  entryScript: string;
+  label?: string;
+}): string {
+  const label = options.label ?? LAUNCH_AGENT_LABEL;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -22,59 +29,115 @@ export function buildPlist(opts: { programArgs: string[]; dataDir: string; label
   <string>${label}</string>
   <key>ProgramArguments</key>
   <array>
-${argsXml}
+    <string>${escapeXml(options.nodeBinary)}</string>
+    <string>${escapeXml(options.entryScript)}</string>
+    <string>daemon</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
-  <key>WorkingDirectory</key>
-  <string>${escapeXml(opts.dataDir)}</string>
-  <key>StandardOutPath</key>
-  <string>${escapeXml(path.join(opts.dataDir, 'supervisor.out.log'))}</string>
-  <key>StandardErrorPath</key>
-  <string>${escapeXml(path.join(opts.dataDir, 'supervisor.err.log'))}</string>
 </dict>
 </plist>
-`
+`;
 }
 
 function escapeXml(value: string): string {
   return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
-export function planInstall(opts?: {
-  home?: string
-  platform?: NodeJS.Platform
-  programArgs?: string[]
-}): InstallPlan {
-  const home = opts?.home ?? os.homedir()
-  const platform = opts?.platform ?? process.platform
-  const dataDir = defaultDataDir(home, platform)
-  const plistPath = launchAgentPlistPath(home)
-  const programArgs = opts?.programArgs ?? ['node', path.join(dataDir, 'run-daemon.js')]
+export function installMacos(options: InstallOptions = {}): {
+  ok: boolean;
+  plistPath: string;
+  dataDir: string;
+  message: string;
+} {
+  const dryRun = options.dryRun ?? false;
+  const home = options.home;
+  const plistPath = launchAgentPlistPath(home);
+  const dataDir = applicationSupportDir(home);
+
+  if (process.platform !== "darwin" && !dryRun) {
+    return {
+      ok: false,
+      plistPath,
+      dataDir,
+      message: "Install is only supported on macOS (darwin). Use --dry-run on other platforms.",
+    };
+  }
+
+  const plist = renderLaunchAgentPlist({
+    nodeBinary: options.nodeBinary ?? process.execPath,
+    entryScript: options.entryScript ?? "dist/cli.js",
+  });
+
+  if (!dryRun) {
+    mkdirSync(dirname(plistPath), { recursive: true });
+    mkdirSync(dataDir, { recursive: true });
+    writeFileSync(plistPath, plist, "utf8");
+  }
+
   return {
-    platform,
-    supported: platform === 'darwin',
+    ok: true,
     plistPath,
     dataDir,
-    label: LAUNCH_AGENT_LABEL,
-    plistContents: buildPlist({ programArgs, dataDir }),
-  }
+    message: dryRun
+      ? `Dry-run: would write LaunchAgent to ${plistPath} and data dir ${dataDir}`
+      : `Installed user LaunchAgent at ${plistPath}`,
+  };
 }
 
-export function planUninstall(opts?: {
-  home?: string
-  platform?: NodeJS.Platform
-}): { plistPath: string; dataDir: string } {
-  const home = opts?.home ?? os.homedir()
-  const platform = opts?.platform ?? process.platform
-  return {
-    plistPath: launchAgentPlistPath(home),
-    dataDir: defaultDataDir(home, platform),
+export function uninstallMacos(options: InstallOptions = {}): {
+  ok: boolean;
+  message: string;
+} {
+  const dryRun = options.dryRun ?? false;
+  const home = options.home;
+  const plistPath = launchAgentPlistPath(home);
+  const dataDir = applicationSupportDir(home);
+
+  if (process.platform !== "darwin" && !dryRun) {
+    return {
+      ok: false,
+      message: "Uninstall is only supported on macOS (darwin). Use --dry-run on other platforms.",
+    };
   }
+
+  if (!dryRun) {
+    if (existsSync(plistPath)) rmSync(plistPath, { force: true });
+    if (existsSync(dataDir)) {
+      if (options.archiveData) {
+        renameSync(dataDir, `${dataDir}.archived-${Date.now()}`);
+      } else {
+        rmSync(dataDir, { recursive: true, force: true });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    message: dryRun
+      ? `Dry-run: would remove ${plistPath} and ${dataDir}`
+      : `Uninstalled LaunchAgent and data dir`,
+  };
+}
+
+export function recordInstallAudit(
+  audit: AuditLog,
+  kind: "install" | "uninstall",
+  dryRun: boolean,
+  summary: string,
+): void {
+  audit.append(
+    createAuditEvent({
+      kind,
+      summary,
+      platform: process.platform,
+      dryRun,
+    }),
+  );
 }

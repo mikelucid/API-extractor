@@ -1,34 +1,61 @@
-import os from 'node:os'
-import path from 'node:path'
+import { homedir } from "node:os";
+import { join } from "node:path";
 
-export const APP_DIR_NAME = 'CursorRootv2'
-export const LAUNCH_AGENT_LABEL = 'com.cursor.rootv2.supervisor'
+export const APP_NAME = "CursorRootv2";
+export const LAUNCH_AGENT_LABEL = "com.cursor.rootv2.supervisor";
 
-export function defaultDataDir(
-  home = os.homedir(),
-  platform: NodeJS.Platform = process.platform,
-): string {
-  if (platform === 'darwin') {
-    return path.join(home, 'Library', 'Application Support', APP_DIR_NAME)
+/** User-domain Application Support path (macOS) with Linux fallback for CI. */
+export function applicationSupportDir(home = homedir()): string {
+  if (process.platform === "darwin") {
+    return join(home, "Library", "Application Support", APP_NAME);
   }
-  return path.join(home, '.local', 'share', 'cursor-rootv2')
+  return join(home, ".local", "share", APP_NAME);
 }
 
-export function launchAgentsDir(home = os.homedir()): string {
-  return path.join(home, 'Library', 'LaunchAgents')
+export function launchAgentsDir(home = homedir()): string {
+  return join(home, "Library", "LaunchAgents");
 }
 
-export function launchAgentPlistPath(home = os.homedir()): string {
-  return path.join(launchAgentsDir(home), `${LAUNCH_AGENT_LABEL}.plist`)
+export function launchAgentPlistPath(home = homedir()): string {
+  return join(launchAgentsDir(home), `${LAUNCH_AGENT_LABEL}.plist`);
 }
 
-/** Owner-local compiled thought tape (dotfolder like .git — not covert OS hiding). */
-export const COMPILED_DIR_NAME = '.rootv2'
+export function auditLogPath(root = applicationSupportDir()): string {
+  return join(root, "audit", "supervisor.jsonl");
+}
+
+export function auditPrettyPath(root = applicationSupportDir()): string {
+  return join(root, "audit", "supervisor.txt");
+}
+
+export function datasetsDir(root = applicationSupportDir()): string {
+  return join(root, "datasets");
+}
+
+export function memoryDatasetPath(root = applicationSupportDir()): string {
+  return join(datasetsDir(root), "memory.jsonl");
+}
+
+export function identityDatasetPath(root = applicationSupportDir()): string {
+  return join(datasetsDir(root), "identity.vault.json");
+}
+
+export function agentRegistryPath(root = applicationSupportDir()): string {
+  return join(datasetsDir(root), "agents.json");
+}
+
+export function sandboxWorkRoot(root = applicationSupportDir()): string {
+  return join(root, "sandbox");
+}
+
+export const APP_DIR_NAME = APP_NAME;
+export const defaultDataDir = applicationSupportDir;
+export const COMPILED_DIR_NAME = ".rootv2";
 
 export function compiledRoot(dataDir: string): string {
-  return path.join(dataDir, COMPILED_DIR_NAME)
+  return join(dataDir, COMPILED_DIR_NAME);
 }
 
 export function compiledSequenceDir(dataDir: string): string {
-  return path.join(compiledRoot(dataDir), 'sequence')
+  return join(compiledRoot(dataDir), "sequence");
 }

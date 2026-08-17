@@ -1,4 +1,4 @@
-import type { ThoughtPattern } from '../types.ts'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: watch only allowlisted sessions. */
 export const thought: ThoughtPattern = {

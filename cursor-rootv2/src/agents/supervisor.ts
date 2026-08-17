@@ -1,0 +1,235 @@
+import { evaluateConstitution, type ConstitutionRequest } from "../constitution/index.js";
+import { AuditLog, createAuditEvent } from "../audit/index.js";
+import { assertValidPersona, DEFAULT_PERSONA, PERSONA_PREAMBLE } from "../persona/index.js";
+import { AgentDatasetStore } from "../datasets/agent-store.js";
+import { MemoryDataset } from "../datasets/memory-store.js";
+import { LocalRouter } from "../router/local-router.js";
+import { ToolCatalog } from "../tools/catalog.js";
+import { ThoughtLoop } from "../thought/index.js";
+import { DEFAULT_ESCALATION, EscalationGate, type EscalationConfig } from "../escalation/index.js";
+import { ProviderChain } from "../fallback/index.js";
+import { InteractionLogger } from "../logging/interaction-logger.js";
+import { WireLogger } from "../logging/wire-logger.js";
+import { assertNoPublicDecentralTransfer } from "../logging/decentral-policy.js";
+import { AgentRegistry } from "./registry.js";
+import { SessionWatcher } from "./watch.js";
+import type { KillFn, ProcessSnapshot } from "./types.js";
+import type { RouterToolId } from "../router/types.js";
+import type { ToolResult } from "../tools/types.js";
+import type { ThoughtPlan } from "../thought/index.js";
+
+export interface SupervisorOptions {
+  rootDir: string;
+  killFn?: KillFn;
+  audit?: AuditLog;
+  escalation?: EscalationConfig;
+  allowImageGen?: boolean;
+  domain?: string;
+}
+
+export interface DecideResult {
+  routedTool: RouterToolId;
+  constitutionAllowed: boolean;
+  constitutionReason: string;
+  escalated: boolean;
+  plan: ThoughtPlan;
+  toolResult?: ToolResult;
+  interactionUuid?: string;
+}
+
+/**
+ * Local supervisor agent upgraded with PDF-derived decision loop:
+ * LocalRouter → constitution → escalation → thought loop → tools;
+ * observe path uses live grid raster + neural P1/P0 ratio + quantized swing.
+ */
+export class SupervisorAgent {
+  readonly persona = DEFAULT_PERSONA;
+  readonly preamble = PERSONA_PREAMBLE;
+  readonly audit: AuditLog;
+  readonly agents: AgentRegistry;
+  readonly watcher: SessionWatcher;
+  readonly memory: MemoryDataset;
+  readonly router = new LocalRouter();
+  readonly tools: ToolCatalog;
+  readonly thoughts = new ThoughtLoop();
+  readonly escalation: EscalationGate;
+  readonly providers = new ProviderChain();
+  readonly interactions: InteractionLogger;
+  readonly wire: WireLogger;
+
+  constructor(options: SupervisorOptions) {
+    assertValidPersona(this.persona);
+    assertNoPublicDecentralTransfer();
+    this.audit = options.audit ?? new AuditLog({ rootDir: options.rootDir });
+    const store = new AgentDatasetStore(options.rootDir);
+    this.agents = new AgentRegistry(store, this.audit);
+    this.watcher = new SessionWatcher(this.agents, this.audit, {
+      ...(options.killFn ? { killFn: options.killFn } : {}),
+      escalation: options.escalation ?? DEFAULT_ESCALATION,
+    });
+    this.memory = new MemoryDataset(options.rootDir);
+    this.tools = new ToolCatalog({ allowImageGen: options.allowImageGen ?? false });
+    this.escalation = new EscalationGate(options.escalation ?? DEFAULT_ESCALATION);
+    const domain = options.domain ?? "cursor-rootv2.local";
+    this.interactions = new InteractionLogger({ rootDir: options.rootDir, domain });
+    this.wire = new WireLogger({ rootDir: options.rootDir, domain });
+  }
+
+  gate(request: ConstitutionRequest) {
+    const decision = evaluateConstitution(request);
+    this.audit.append(
+      createAuditEvent({
+        kind: "constitution_decision",
+        summary: decision.reason,
+        allowed: decision.allowed,
+        intent: decision.intent,
+        reason: decision.reason,
+      }),
+    );
+    this.wire.log(
+      "constitution.gate",
+      { text: request.text, intentHint: request.intentHint ?? null },
+      { allowed: decision.allowed, intent: decision.intent },
+    );
+    return decision;
+  }
+
+  /**
+   * Owner-request decision path (Router + Thought PDFs).
+   * Never executes tools when constitution denies.
+   */
+  async decide(text: string): Promise<DecideResult> {
+    const routed = this.router.route(text);
+    this.audit.append(
+      createAuditEvent({
+        kind: "route_decision",
+        summary: routed.reason,
+        toolId: routed.toolId,
+        confidence: routed.confidence,
+      }),
+    );
+    this.wire.log("router.route", { text }, { toolId: routed.toolId, confidence: routed.confidence });
+
+    const constitution = this.gate({
+      text,
+      intentHint: routed.intentHint,
+    });
+
+    const ratio = this.watcher.raster.snapshot();
+    const thought = this.thoughts.run({
+      text,
+      threatSafeRatio: ratio.threatSafeRatio,
+      constitutionAllowed: constitution.allowed,
+    });
+
+    if (!constitution.allowed) {
+      return {
+        routedTool: routed.toolId,
+        constitutionAllowed: false,
+        constitutionReason: constitution.reason,
+        escalated: false,
+        plan: thought.plan,
+      };
+    }
+
+    const esc = this.escalation.evaluate({
+      urgency: 1 - routed.confidence,
+      proposedAction: thought.plan.action,
+    });
+    this.audit.append(
+      createAuditEvent({
+        kind: "escalation",
+        summary: esc.reason,
+        autoAct: esc.autoAct,
+        escalateToOwner: esc.escalateToOwner,
+      }),
+    );
+
+    if (esc.escalateToOwner && !esc.autoAct && thought.plan.action === "contain") {
+      return {
+        routedTool: routed.toolId,
+        constitutionAllowed: true,
+        constitutionReason: constitution.reason,
+        escalated: true,
+        plan: thought.plan,
+      };
+    }
+
+    const toolResult = await this.tools.execute(routed.toolId, text);
+    this.wire.log(
+      `tool.${routed.toolId}`,
+      { text },
+      { ok: toolResult.ok, usedStub: toolResult.usedStub },
+      toolResult.error,
+    );
+
+    const interaction = this.interactions.addEntry({
+      topic: text.slice(0, 80),
+      request: text,
+      bestAnswer: thought.plan.reasoning,
+      apiUsed: routed.toolId,
+      rating: routed.confidence,
+      tags: ["decide", routed.toolId],
+    });
+
+    this.recordLesson({
+      title: `Decision: ${routed.toolId}`,
+      summary: thought.plan.reasoning,
+      tags: ["decide", routed.toolId],
+      rating: routed.confidence,
+      decisionRatio: ratio.threatSafeRatio,
+    });
+
+    return {
+      routedTool: routed.toolId,
+      constitutionAllowed: true,
+      constitutionReason: constitution.reason,
+      escalated: esc.escalateToOwner,
+      plan: thought.plan,
+      toolResult,
+      interactionUuid: interaction.uuid,
+    };
+  }
+
+  observe(snapshot: ProcessSnapshot) {
+    const result = this.watcher.observe(snapshot);
+    const nn = this.watcher.raster.lastNeuralPrediction();
+    this.wire.log(
+      "observe.ratio",
+      { pid: snapshot.pid, argv: snapshot.argv },
+      {
+        ignored: result.ignored,
+        contained: Boolean(result.containment?.contained),
+        threatSafeRatio: result.ratio?.threatSafeRatio ?? null,
+        neuralProbRatio: nn?.probRatio ?? null,
+        swing: result.swing?.action ?? null,
+      },
+    );
+    return result;
+  }
+
+  recordLesson(input: {
+    title: string;
+    summary: string;
+    tags: string[];
+    relatedRuleIds?: string[];
+    relatedAgentIds?: string[];
+    sourceRehearsalId?: string;
+    rating?: number;
+    decisionRatio?: number;
+  }) {
+    return this.memory.append({
+      kind: "lesson",
+      title: input.title,
+      summary: input.summary,
+      tags: input.tags,
+      relatedRuleIds: input.relatedRuleIds ?? [],
+      relatedAgentIds: input.relatedAgentIds ?? [],
+      ...(input.sourceRehearsalId !== undefined
+        ? { sourceRehearsalId: input.sourceRehearsalId }
+        : {}),
+      ...(input.rating !== undefined ? { rating: input.rating } : {}),
+      ...(input.decisionRatio !== undefined ? { decisionRatio: input.decisionRatio } : {}),
+    });
+  }
+}

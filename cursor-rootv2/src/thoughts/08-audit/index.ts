@@ -1,4 +1,4 @@
-import type { ThoughtPattern } from '../types.ts'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: owner-readable action record. */
 export const thought: ThoughtPattern = {

@@ -1,13 +1,13 @@
-import { thought as persona } from './00-persona/index.ts'
-import { thought as constitution } from './01-constitution/index.ts'
-import { thought as observe } from './02-observe/index.ts'
-import { thought as diagnose } from './03-diagnose/index.ts'
-import { thought as contain } from './04-contain/index.ts'
-import { thought as rehearse } from './05-rehearse/index.ts'
-import { thought as remember } from './06-remember/index.ts'
-import { thought as identity } from './07-identity/index.ts'
-import { thought as audit } from './08-audit/index.ts'
-import type { ThoughtPattern } from './types.ts'
+import { thought as persona } from './00-persona/index.js'
+import { thought as constitution } from './01-constitution/index.js'
+import { thought as observe } from './02-observe/index.js'
+import { thought as diagnose } from './03-diagnose/index.js'
+import { thought as contain } from './04-contain/index.js'
+import { thought as rehearse } from './05-rehearse/index.js'
+import { thought as remember } from './06-remember/index.js'
+import { thought as identity } from './07-identity/index.js'
+import { thought as audit } from './08-audit/index.js'
+import type { ThoughtPattern } from './types.js'
 
 export const THOUGHT_BY_ID: Record<string, ThoughtPattern> = {
   persona,

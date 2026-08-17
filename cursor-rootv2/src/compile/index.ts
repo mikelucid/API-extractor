@@ -2,15 +2,15 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { compiledRoot } from '../paths.ts'
+import { compiledRoot } from '../paths.js'
 import {
   assertChainLinks,
   PIPELINE_IDS,
   PIPELINES,
   pipelineChain,
   type PipelineId,
-} from '../thoughts/chain.ts'
-import { TAPE_MAGIC, type CompiledFrame, type ThoughtTape } from '../thoughts/types.ts'
+} from '../thoughts/chain.js'
+import { TAPE_MAGIC, type CompiledFrame, type ThoughtTape } from '../thoughts/types.js'
 
 export type CompileResult = {
   pipeline: PipelineId

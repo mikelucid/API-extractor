@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import test from 'node:test'
-import { addAllowlistEntry } from '../src/allowlist/index.ts'
-import { readAuditJsonl } from '../src/audit/index.ts'
-import { createSession, handleSessionEvent } from '../src/session/index.ts'
+import { test } from 'vitest'
+import { addAllowlistEntry } from '../src/allowlist/index.js'
+import { readAuditJsonl } from '../src/audit/index.js'
+import { createSession, handleSessionEvent } from '../src/session/index.js'
 
 test('non-allowlisted session is ignored', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rootv2-contain-'))

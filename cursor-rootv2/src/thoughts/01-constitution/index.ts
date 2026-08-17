@@ -1,5 +1,5 @@
-import { CONSTITUTION_VERSION, serializeConstitutionRules } from '../../constitution/index.ts'
-import type { ThoughtPattern } from '../types.ts'
+import { CONSTITUTION_VERSION, serializeConstitutionRules } from '../../constitution/index.js'
+import type { ThoughtPattern } from '../types.js'
 
 /** Thought pattern: fail-closed crime/hacking/fraud refusal. */
 export const thought: ThoughtPattern = {
