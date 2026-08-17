@@ -17,7 +17,7 @@ import { ThoughtmonDex, type GymId } from "./thoughtmon/dex.js";
 import type { ThoughtKind } from "./thoughts/incomplete-queue.js";
 
 function usage(): never {
-  console.log(`cursor-rootv2 — local safety supervisor
+  console.log(`agent — local safety supervisor
 
 Usage:
   cursor-rootv2 status
@@ -42,6 +42,14 @@ Usage:
   cursor-rootv2 tape --intent "<text>" [--pipeline name]
   cursor-rootv2 memory-recall "<query>"
   cursor-rootv2 memory-add --kind k --outcome success|failure|info --detail "<text>"
+  cursor-rootv2 gwav-forge --id <id> [--node ruby] [--hz 432|528] [--quant Q4_K_M|Q8_0]
+  cursor-rootv2 gwav-seed                 # six orbital nodes + origin .gwav cards
+  cursor-rootv2 gwav-list
+  cursor-rootv2 gwav-inspect <id>
+  cursor-rootv2 gwav-prompt <id> "<text>" # constitution-gated local stub (not llama.cpp)
+  cursor-rootv2 gwav-orbit --seed "<text>" [--steps 6]
+  cursor-rootv2 gwav-export-ollama <id>
+  cursor-rootv2 gwav-export-jsonl --seed "<text>" [--steps 6]
 
   (alias) bored → rehearse   # institutional drills, slow by default
   note: think/muse/rehearse/decide auto-complete any incomplete thoughts first
@@ -71,10 +79,11 @@ async function main(argv: string[]): Promise<void> {
       const queue = new IncompleteThoughtQueue(rootDir);
       const dex = new ThoughtmonDex(rootDir);
       const dexState = dex.load();
+      const { GwavVault } = await import("./gwav/index.js");
       console.log(
         JSON.stringify(
           {
-            app: "cursor-rootv2",
+            app: "agent",
             dataDir: rootDir,
             persona: supervisor.persona.mode,
             agents: supervisor.agents.list().length,
@@ -88,6 +97,7 @@ async function main(argv: string[]): Promise<void> {
               box: dexState.box.length,
               seen: dexState.seenSpecies.length,
             },
+            gwav: new GwavVault(rootDir).list().length,
             mathThinking: true,
             neuralRaster: true,
             platform: process.platform,
@@ -370,6 +380,94 @@ async function main(argv: string[]): Promise<void> {
       );
       return;
     }
+    case "gwav-forge": {
+      const { GwavVault } = await import("./gwav/index.js");
+      const id = flagValue(rest, "--id");
+      if (!id) usage();
+      const nodeRaw = flagValue(rest, "--node") ?? "origin";
+      const hz = Number(flagValue(rest, "--hz") ?? "432");
+      const quant = flagValue(rest, "--quant") ?? "Q4_K_M";
+      const vault = new GwavVault(rootDir);
+      const directive = flagValue(rest, "--directive");
+      const file = vault.forge({
+        id,
+        node: (["origin", "ruby", "sapphire", "emerald", "amethyst", "topaz", "obsidian"].includes(nodeRaw)
+          ? nodeRaw
+          : "origin") as "origin" | "ruby" | "sapphire" | "emerald" | "amethyst" | "topaz" | "obsidian",
+        carrierHz: hz === 528 ? 528 : 432,
+        quantization: quant === "Q8_0" ? "Q8_0" : "Q4_K_M",
+        embedStubGguf: true,
+        ...(directive ? { systemDirective: directive } : {}),
+      });
+      console.log(JSON.stringify({ id: file.header.id, path: vault.pathFor(id), fingerprint: file.header.waveformFingerprint }, null, 2));
+      return;
+    }
+    case "gwav-seed": {
+      const { GwavVault } = await import("./gwav/index.js");
+      const vault = new GwavVault(rootDir);
+      const seeded = vault.seedOrbit();
+      console.log(JSON.stringify(seeded.map((f) => f.header.id), null, 2));
+      return;
+    }
+    case "gwav-list": {
+      const { GwavVault } = await import("./gwav/index.js");
+      console.log(JSON.stringify(new GwavVault(rootDir).list(), null, 2));
+      return;
+    }
+    case "gwav-inspect": {
+      const { GwavVault, estimateVramMb, toOllamaModelfile, chimePreview } = await import("./gwav/index.js");
+      const id = rest[0];
+      if (!id) usage();
+      const vault = new GwavVault(rootDir);
+      const file = vault.load(id);
+      console.log(
+        JSON.stringify(
+          {
+            header: file.header,
+            embeddedGgufBytes: file.gguf.byteLength,
+            vramMb: estimateVramMb(file.header.paramsBillion, file.header.quantization),
+            chime: chimePreview(file.header.carrierHz),
+            ollama: toOllamaModelfile(file),
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    case "gwav-prompt": {
+      const { GwavVault, promptGwav } = await import("./gwav/index.js");
+      const id = rest[0];
+      const text = rest.slice(1).join(" ").trim();
+      if (!id || !text) usage();
+      console.log(JSON.stringify(promptGwav(new GwavVault(rootDir).load(id), text), null, 2));
+      return;
+    }
+    case "gwav-orbit": {
+      const { GwavVault, runOrbit } = await import("./gwav/index.js");
+      const vault = new GwavVault(rootDir);
+      if (vault.list().length === 0) vault.seedOrbit();
+      const seed = flagValue(rest, "--seed") ?? "diagnose local agent";
+      const steps = Number(flagValue(rest, "--steps") ?? "6");
+      console.log(JSON.stringify(runOrbit(vault, seed, Number.isFinite(steps) ? steps : 6), null, 2));
+      return;
+    }
+    case "gwav-export-jsonl": {
+      const { GwavVault, runOrbit, orbitToJsonl } = await import("./gwav/index.js");
+      const vault = new GwavVault(rootDir);
+      if (vault.list().length === 0) vault.seedOrbit();
+      const seed = flagValue(rest, "--seed") ?? "diagnose local agent";
+      const steps = Number(flagValue(rest, "--steps") ?? "6");
+      process.stdout.write(orbitToJsonl(runOrbit(vault, seed, Number.isFinite(steps) ? steps : 6)));
+      return;
+    }
+    case "gwav-export-ollama": {
+      const { GwavVault, toOllamaModelfile } = await import("./gwav/index.js");
+      const id = rest[0];
+      if (!id) usage();
+      console.log(toOllamaModelfile(new GwavVault(rootDir).load(id)));
+      return;
+    }
     case "memory-add": {
       const { ingestMemory } = await import("./memory/index.js");
       const kind = flagValue(rest, "--kind") ?? "note";
@@ -398,7 +496,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "daemon": {
-      console.log("cursor-rootv2 daemon idle (watch loop is invoked via observe API / tests)");
+      console.log("agent daemon idle (watch loop is invoked via observe API / tests)");
       return;
     }
     case undefined:

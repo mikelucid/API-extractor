@@ -19,6 +19,10 @@ final class LayoutPlanner
 
     private float $lastBudget = 0.0;
 
+    public function __construct(private readonly CostModel $costs = new CostModel())
+    {
+    }
+
     public function current(): string
     {
         return $this->current;
@@ -33,14 +37,19 @@ final class LayoutPlanner
             return null;
         }
 
-        $target = $this->pick($stats);
+        $target = $this->costs->choose($this->current, $stats);
+        if ($target === $this->current) {
+            $target = $this->pick($stats);
+        }
         if ($target === $this->current) {
             return null;
         }
 
-        $benefit = $stats->reorgBudget;
-        $cost = 0.2 + (0.1 * $this->mutations);
-        if ($benefit <= $cost) {
+        $before = $this->costs->expectedCost($this->current, $stats);
+        $after = $this->costs->expectedCost($target, $stats);
+        $migration = $this->costs->migrationCost($this->current, $target);
+        $benefit = $before - $after;
+        if ($benefit <= $migration && $stats->reorgBudget < 0.8) {
             return null;
         }
 
@@ -48,7 +57,8 @@ final class LayoutPlanner
             'from' => $this->current,
             'to' => $target,
             'benefit' => $benefit,
-            'cost' => $cost,
+            'cost' => $migration,
+            'objective' => $this->costs->objective($this->current, $target, $stats),
             'reason' => $this->reason($stats, $target),
         ];
     }

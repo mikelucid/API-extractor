@@ -31,7 +31,7 @@ export async function runThinkDemo(options: {
     options.onLine?.(line);
   };
 
-  emit("cursor-rootv2 · mathematical thinking demo");
+  emit("agent · mathematical thinking demo");
   emit("equations: m:=m+a·Δt · R:=P_threat(m)/P_safe(m) · E[R] over horizon");
   emit("");
 

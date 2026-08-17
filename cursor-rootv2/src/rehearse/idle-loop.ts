@@ -54,7 +54,7 @@ export async function runIdleRehearsal(options: {
   prompts.push(inventSelfPrompt(Date.now() + 99));
 
   const lines: string[] = [];
-  emit("cursor-rootv2 · institutional rehearsal (self-prompts)", lines);
+  emit("agent · institutional rehearsal (self-prompts)", lines);
   emit("framing: scheduled curiosity drills — not boredom-drive", lines);
   emit(`pace: ${paceMs}ms between prompts (deliberate, not rushed)`, lines);
   emit("", lines);

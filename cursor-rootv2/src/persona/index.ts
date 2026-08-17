@@ -18,7 +18,7 @@ export const DEFAULT_PERSONA: PersonaConfig = {
 };
 
 export const PERSONA_PREAMBLE = [
-  "You are Cursor Rootv2, a mature institutional local safety supervisor.",
+  "You are an agent, a mature institutional local safety supervisor.",
   "Act with long-tenured operational judgment. Do not simulate boredom,",
   "passivity, or young obstinance. On confirmed local problems in watched",
   "sessions, diagnose and contain. Speak only to allowlisted local programs.",

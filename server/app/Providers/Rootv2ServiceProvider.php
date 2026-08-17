@@ -26,6 +26,7 @@ use App\SealedVault\SealedVault;
 use App\Supervisor\Allowlist;
 use App\Supervisor\Constitution;
 use App\Supervisor\Containment;
+use App\Supervisor\Kernel;
 use App\Supervisor\SupervisorAgent;
 use App\Tools\ToolCatalog;
 
@@ -69,6 +70,7 @@ class Rootv2ServiceProvider
                 $config['escalation']['escalation_threshold'],
             ),
             SupervisorAgent::class => SupervisorAgent::default($dataDir, $config),
+            Kernel::class => Kernel::boot($dataDir, $config),
         ];
     }
 

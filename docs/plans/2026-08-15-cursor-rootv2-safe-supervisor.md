@@ -1,5 +1,5 @@
 ---
-title: Cursor Rootv2 Safe Local Supervisor - Plan
+title: Agent Safe Local Supervisor - Plan
 type: feat
 date: 2026-08-15
 deepened: 2026-08-16
@@ -9,7 +9,7 @@ product_contract_source: ce-plan-bootstrap
 execution: code
 ---
 
-# Cursor Rootv2 Safe Local Supervisor - Plan
+# Agent Safe Local Supervisor - Plan
 
 ## Goal Capsule
 
@@ -23,7 +23,7 @@ execution: code
 
 ### Summary
 
-Cursor Rootv2 v1 is a **local safety supervisor** (CLI + long-running daemon). It acts like a long-tenured operator: no boredom drive, no obstinance passivity. Rule-based constitution fails closed before side effects. When an allowlisted session trips a v1 detector, it diagnoses and contains. Friend-gated identity is local and consent-based. The owner gets a human-readable audit of supervisor actions.
+The agent (Rootv2) v1 is a **local safety supervisor** (CLI + long-running daemon). It acts like a long-tenured operator: no boredom drive, no obstinance passivity. Rule-based constitution fails closed before side effects. When an allowlisted session trips a v1 detector, it diagnoses and contains. Friend-gated identity is local and consent-based. The owner gets a human-readable audit of supervisor actions.
 
 ### Problem Frame
 

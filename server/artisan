@@ -5,19 +5,4 @@ declare(strict_types=1);
 
 require __DIR__.'/vendor/autoload.php';
 
-$command = $argv[1] ?? 'help';
-
-switch ($command) {
-    case 'test':
-        passthru(__DIR__.'/vendor/bin/phpunit --colors=always', $code);
-        exit($code ?? 1);
-    case 'map':
-        echo file_get_contents(__DIR__.'/README.md');
-        exit(0);
-    case 'up':
-        echo json_encode(['ok' => true, 'service' => 'rootv2-server'], JSON_PRETTY_PRINT), PHP_EOL;
-        exit(0);
-    default:
-        fwrite(STDERR, "Usage: php artisan [test|map|up]\n");
-        exit(1);
-}
+exit(App\Console\Kernel::handle($argv));

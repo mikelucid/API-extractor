@@ -22,7 +22,8 @@ final class LaravelSurfaceTest extends TestCase
         $this->assertSame('app/CircuitBending', $map['circuit_bending']);
         $this->assertSame('app/SealedVault', $map['sealed_vault']);
         $this->assertSame('app/Supervisor', $map['rootv2_supervisor']);
-        foreach (['app/MorphicMemory', 'app/Decision', 'app/CognitiveFabric', 'app/AmorphousFabric', 'app/AgentQuery', 'app/CircuitBending', 'app/SealedVault', 'app/Supervisor'] as $dir) {
+        $this->assertSame('app/Gwav', $map['gwav']);
+        foreach (['app/MorphicMemory', 'app/Decision', 'app/CognitiveFabric', 'app/AmorphousFabric', 'app/AgentQuery', 'app/CircuitBending', 'app/SealedVault', 'app/Supervisor', 'app/Gwav'] as $dir) {
             $this->assertDirectoryExists(dirname(__DIR__, 2).'/'.$dir);
         }
     }
@@ -31,10 +32,12 @@ final class LaravelSurfaceTest extends TestCase
     {
         $bindings = (new Rootv2ServiceProvider())->register();
         $this->assertArrayHasKey(\App\MorphicMemory\MorphicMemoryRegion::class, $bindings);
-        $this->assertArrayHasKey(\App\CognitiveFabric\CognitiveFabric::class, $bindings);
+        $this->assertArrayHasKey(\App\Supervisor\Kernel::class, $bindings);
         $status = (new StatusController())->show();
-        $this->assertSame(128, $status['fabric_cores']);
-        $this->assertSame(29.0, $status['pricing_floor']);
+        $this->assertSame(128, $status['fabricCores']);
+        $this->assertSame(29.0, $status['pricingFloor']);
         $this->assertFalse($status['decentral']->torrent);
+        $this->assertSame('agent', $status['app']);
+        $this->assertSame('institutional', $status['persona']);
     }
 }
