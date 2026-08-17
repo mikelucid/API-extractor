@@ -14,5 +14,4 @@ docker rm rootagentv2-sandbox 2>/dev/null || true
 docker run -d --name rootagentv2-sandbox -p 3000:3000 "rootagentv2-web:$IMAGE_TAG"
 
 echo "==> Waiting for app to start..."
-sleep 5
-curl --fail http://localhost:3000/ && echo "✅ Sandbox healthy at http://localhost:3000"
+npx --yes wait-on --timeout 30000 http://localhost:3000/ && echo "✅ Sandbox healthy at http://localhost:3000"
