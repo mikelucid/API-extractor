@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { decodeGwav, encodeGwav, stubGgufBlob } from "./codec.js";
+import { decodeGwav, encodeGwav, reencodeGwav, stubGgufBlob } from "./codec.js";
+import { resonateAndExtendMean, matchHarmonicResonance } from "./resonance.js";
 import type { GwavCard, GwavCarrierHz, GwavFile, GwavNodeId, GwavQuant } from "./types.js";
 import { GWAV_NODES } from "./types.js";
 import { estimateVramMb } from "./vram.js";
@@ -102,5 +103,31 @@ export class GwavVault {
   verify(id: string): boolean {
     const file = this.load(id);
     return file.header.waveformFingerprint === waveformFingerprint(file.header);
+  }
+
+  search(query: string): Array<{ id: string; score: number; harmonic: string; hits: number }> {
+    return this.list()
+      .map(({ id }) => {
+        const file = this.load(id);
+        const match = matchHarmonicResonance(file.fractal!, query);
+        return { id, score: match.score, harmonic: match.harmonic, hits: match.hits.length };
+      })
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score - a.score);
+  }
+
+  /** Harmonic hit extends the card’s running mean vector and persists v2 bin. */
+  resonate(id: string, query: string): {
+    match: ReturnType<typeof matchHarmonicResonance>;
+    mean: { hitCount: number };
+    extended: boolean;
+  } {
+    let file = this.load(id);
+    const { match, mean, extended } = resonateAndExtendMean(file, query);
+    if (extended) {
+      file = { ...file, mean };
+      writeFileSync(this.pathFor(id), reencodeGwav(file));
+    }
+    return { match, mean: { hitCount: mean.hitCount }, extended };
   }
 }

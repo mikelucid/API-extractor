@@ -29,6 +29,11 @@ final class GwavTest extends TestCase
         $this->assertSame('GWAV', substr($buf, 0, 4));
         $file = Codec::decode($buf);
         $this->assertSame('gguf', $file['header']['parentFormat']);
+        $this->assertSame(Codec::VERSION, $file['header']['version']);
+        $this->assertSame(Codec::BITRATE, $file['header']['bitrate']);
+        $this->assertSame(0, $file['header']['sampleCount']);
+        $this->assertNotEmpty($file['fractal']['tokens']);
+        $this->assertSame(64, $file['mean']['dims']);
         $this->assertSame(432, $file['header']['carrierHz']);
         $this->assertStringStartsWith('GGUF', $file['gguf']);
         $this->assertSame($file['header']['waveformFingerprint'], Waveform::fingerprint($file['header']));
@@ -57,5 +62,12 @@ final class GwavTest extends TestCase
         $this->assertSame(6, substr_count($jsonl, "\n"));
         $this->assertStringContainsString('FROM', Codec::toOllamaModelfile($vault->load('origin')));
         $this->assertSame(432, Waveform::chime(432)['carrierHz']);
+
+        $hits = $vault->search('diagnose local agent');
+        $this->assertNotEmpty($hits);
+        $this->assertContains('ruby', array_map(static fn ($h) => $h['id'], $hits));
+        $res = $vault->resonate('ruby', 'diagnose local agent');
+        $this->assertTrue($res['extended']);
+        $this->assertGreaterThan(0, $res['mean']['hitCount']);
     }
 }

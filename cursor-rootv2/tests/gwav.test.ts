@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -6,13 +6,18 @@ import {
   decodeGwav,
   encodeGwav,
   estimateVramMb,
+  GWAV_BITRATE,
+  GWAV_VERSION,
   GwavVault,
+  inspectGwavContainer,
+  matchHarmonicResonance,
   promptGwav,
   runOrbit,
   stubGgufBlob,
   toOllamaModelfile,
   waveformFingerprint,
   orbitToJsonl,
+  buildFractalIndex,
 } from "../src/gwav/index.js";
 
 function tmp(): string {
@@ -20,7 +25,7 @@ function tmp(): string {
 }
 
 describe("gwav codec", () => {
-  it("round-trips a GGUF-parent card with waveform fingerprint", () => {
+  it("round-trips v2 WAV-like bin with 1.4M bitrate and no duration", () => {
     const card = {
       id: "ruby",
       name: "Ruby",
@@ -34,15 +39,23 @@ describe("gwav codec", () => {
     };
     const buf = encodeGwav(card, stubGgufBlob());
     expect(buf.subarray(0, 4).toString("ascii")).toBe("GWAV");
+    const container = inspectGwavContainer(buf);
+    expect(container.version).toBe(GWAV_VERSION);
+    expect(container.bitrate).toBe(GWAV_BITRATE);
+    expect(container.sampleCount).toBe(0);
+    expect(container.chunkIds).toEqual(expect.arrayContaining(["fmt ", "meta", "frct", "mean", "gguf"]));
+
     const file = decodeGwav(buf);
     expect(file.header.id).toBe("ruby");
-    expect(file.header.carrierHz).toBe(432);
-    expect(file.header.parentFormat).toBe("gguf");
+    expect(file.header.bitrate).toBe(GWAV_BITRATE);
+    expect(file.header.sampleCount).toBe(0);
+    expect(file.fractal!.tokens.length).toBeGreaterThan(0);
+    expect(file.mean!.dims).toBe(64);
     expect(Buffer.from(file.gguf.subarray(0, 4)).toString("ascii")).toBe("GGUF");
     expect(file.header.waveformFingerprint).toBe(waveformFingerprint(file.header));
   });
 
-  it("rejects GGUF magic and fingerprint tampering", () => {
+  it("rejects GGUF magic and meta fingerprint tampering", () => {
     expect(() => decodeGwav(Buffer.from("GGUF"))).toThrow(/Not a \.gwav/);
     const buf = encodeGwav({
       id: "x",
@@ -56,7 +69,9 @@ describe("gwav codec", () => {
       parentFormat: "gguf",
     });
     const tampered = Buffer.from(buf);
-    tampered[20] = tampered[20]! ^ 0xff;
+    const metaIdx = tampered.indexOf("waveformFingerprint");
+    expect(metaIdx).toBeGreaterThan(0);
+    tampered[metaIdx] = tampered[metaIdx]! ^ 0xff;
     expect(() => decodeGwav(tampered)).toThrow();
   });
 
@@ -78,6 +93,40 @@ describe("gwav codec", () => {
 
   it("Q8 footprint is larger than Q4", () => {
     expect(estimateVramMb(7, "Q8_0")).toBeGreaterThan(estimateVramMb(7, "Q4_K_M"));
+  });
+});
+
+describe("gwav fractal resonance", () => {
+  it("finds harmonic matches and extends the mean on resonate", () => {
+    const vault = new GwavVault(tmp());
+    vault.forge({ id: "ruby", node: "ruby", systemDirective: "local diagnose agent session" });
+    const hits = vault.search("diagnose local agent");
+    expect(hits[0]?.id).toBe("ruby");
+    expect(hits[0]?.score).toBeGreaterThan(0);
+
+    const fractal = buildFractalIndex({
+      id: "ruby",
+      name: "Ruby",
+      node: "ruby",
+      quantization: "Q4_K_M",
+      carrierHz: 432,
+      paramsBillion: 7,
+      systemDirective: "local diagnose agent session",
+      constitutionBound: true,
+      parentFormat: "gguf",
+    });
+    const match = matchHarmonicResonance(fractal, "diagnose local agent");
+    expect(match.harmonic).toBe("resonate");
+
+    const before = vault.load("ruby");
+    expect(before.mean!.hitCount).toBe(0);
+    const out = vault.resonate("ruby", "diagnose local agent");
+    expect(out.extended).toBe(true);
+    expect(out.mean.hitCount).toBeGreaterThan(0);
+    const after = vault.load("ruby");
+    expect(after.mean!.hitCount).toBe(out.mean.hitCount);
+    const container = inspectGwavContainer(readFileSync(vault.pathFor("ruby")));
+    expect(container.version).toBe(GWAV_VERSION);
   });
 });
 

@@ -34,5 +34,7 @@ return [
     'POST /api/gwav/prompt' => static fn (array $in) => (new GwavController())->prompt($in),
     'POST /api/gwav/orbit' => static fn (array $in) => (new GwavController())->orbit($in),
     'POST /api/gwav/export-ollama' => static fn (array $in) => (new GwavController())->exportOllama($in),
+    'POST /api/gwav/search' => static fn (array $in) => (new GwavController())->search($in),
+    'POST /api/gwav/resonate' => static fn (array $in) => (new GwavController())->resonate($in),
     'GET /api/legacy-status' => static fn () => (new StatusController())->show(),
 ];

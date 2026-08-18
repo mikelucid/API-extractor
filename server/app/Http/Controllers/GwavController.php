@@ -56,4 +56,24 @@ final class GwavController
 
         return ['modelfile' => \App\Gwav\Codec::toOllamaModelfile($file), 'chime' => \App\Gwav\Waveform::chime((int) $file['header']['carrierHz'])];
     }
+
+    public function search(array $input): array
+    {
+        $vault = new Vault(Kernel::boot()->dataDir);
+        if ($vault->list() === []) {
+            $vault->seedOrbit();
+        }
+
+        return ['results' => $vault->search((string) ($input['q'] ?? ''))];
+    }
+
+    public function resonate(array $input): array
+    {
+        $vault = new Vault(Kernel::boot()->dataDir);
+        if ($vault->list() === []) {
+            $vault->seedOrbit();
+        }
+
+        return $vault->resonate((string) ($input['id'] ?? 'ruby'), (string) ($input['q'] ?? ''));
+    }
 }
