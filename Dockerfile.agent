@@ -1,10 +1,19 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY cursor-rootv2/package*.json ./
 RUN npm ci --ignore-scripts
 
 COPY cursor-rootv2/ .
-RUN npm run build
+# Bundle TypeScript into a single CJS file, then compile to native executable
+RUN npm run build:bundle && \
+    npm run compile:linux
 
-ENTRYPOINT ["node", "dist/cli.js"]
+# ── runtime stage ──────────────────────────────────────────────────────────────
+FROM alpine:3.20
+WORKDIR /app
+
+COPY --from=builder /app/dist/executables/rootagentv2-linux /usr/local/bin/rootagentv2
+RUN chmod +x /usr/local/bin/rootagentv2
+
+ENTRYPOINT ["rootagentv2"]

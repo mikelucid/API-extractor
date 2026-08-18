@@ -1,12 +1,13 @@
 {
-  "name": "cursor-rootv2",
+  "name": "rootagentv2",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Local safety supervisor: constitution, allowlisted agents, thought pipelines, harmonic memory.",
   "bin": {
-    "cursor-rootv2": "./src/cli.ts",
-    "agent": "./src/cli.ts"
+    "rootagentv2": "./bin/rootagentv2.js",
+    "cursor-rootv2": "./bin/rootagentv2.js",
+    "agent": "./bin/rootagentv2.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -14,13 +15,26 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cli": "tsx src/cli.ts",
-    "compile": "tsx src/cli.ts compile"
+    "build:bundle": "node scripts/build-bundle.mjs",
+    "compile": "npm run build:bundle && pkg dist/rootagentv2-bundle.cjs --config package.json --out-path dist/executables",
+    "compile:linux": "npm run build:bundle && pkg dist/rootagentv2-bundle.cjs --target node20-linux-x64 --output dist/executables/rootagentv2-linux",
+    "compile:macos": "npm run build:bundle && pkg dist/rootagentv2-bundle.cjs --target node20-macos-x64 --output dist/executables/rootagentv2-macos"
+  },
+  "pkg": {
+    "targets": [
+      "node20-linux-x64",
+      "node20-macos-x64"
+    ],
+    "outputPath": "dist/executables",
+    "assets": []
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "@yao-pkg/pkg": "^6.22.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.20.5",
     "typescript": "~5.9.2",
     "vitest": "^3.2.4"
