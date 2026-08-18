@@ -1,42 +1,62 @@
-# CertForge — Lovable AI Web Developer Certification Lab
+# rootagentv2
 
-Interactive lab for completing **12 portfolio projects across 7 categories**, tracking progress, and preparing for:
+A production-ready TypeScript/React web application with a local AI safety supervisor CLI agent — fully configured for GitHub Codespaces, GitHub Actions CI/CD, and AWS EC2 deployment.
 
-- [Lovable Foundations & Practitioner exams](https://certification-journey-hub.lovable.app/exams)
-- LinkedIn vibe coding level (account settings → Connect to LinkedIn)
-- University-backed [Vibe Coding Fundamentals](https://www.coursera.org/learn/vibe-coding-fundamentals) (University of Colorado System on Coursera)
-- [Student Pro discount](https://lovable.dev/students) (~50% off Pro for up to 12 months after verification)
-
-## Run locally
+## Quick start
 
 ```bash
-npm install
-npm run dev
+bash scripts/setup-dev.sh   # install deps, copy .env files, typecheck
+npm run dev                 # Vite dev server → http://localhost:5173
 ```
 
-## Related package: Agent
+## Project structure
 
-Local safety supervisor (datasets + allowlisted agents + constitution gate) lives in [`cursor-rootv2/`](./cursor-rootv2/). The PHP/Laravel filesystem that mirrors each theory document lives in [`server/`](./server/). Both are separate from this certification lab.
+```
+rootagentv2/
+├── src/                    # React 19 / Vite 8 frontend (pages, components, data)
+├── cursor-rootv2/          # TypeScript CLI agent (supervisor, constitution, memory)
+├── packages/shared/        # Shared types via neverthrow
+├── infrastructure/aws/     # EC2 setup, deploy, health-check scripts, Terraform SG
+├── scripts/                # One-command ops (setup, build, test, deploy)
+├── docs/                   # Guides (see below)
+├── .devcontainer/          # GitHub Codespaces — Node 20 + Docker + AWS CLI
+└── .github/workflows/      # CI/CD pipelines
+```
 
-## What’s included
+## Documentation
 
-| # | Project | Category |
-|---|---------|----------|
-| 1 | Portfolio site | Personal |
-| 2 | Link-in-bio | Personal |
-| 3 | SaaS landing | Business |
-| 4 | Appointment booking | Business |
-| 5 | Task manager | Productivity |
-| 6 | Habit heatmap | Productivity |
-| 7 | Flashcards & quiz | Education |
-| 8 | Student progress | Education |
-| 9 | Event voting | Community |
-| 10 | Analytics dashboard | Data & AI |
-| 11 | AI content generator | Data & AI |
-| 12 | Digital storefront | E-commerce |
+| Guide | Description |
+|-------|-------------|
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local dev setup |
+| [docs/CODESPACES.md](docs/CODESPACES.md) | GitHub Codespaces guide |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | AWS EC2 deployment |
+| [docs/CI-CD.md](docs/CI-CD.md) | GitHub Actions workflows |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture overview |
+| [docs/TESTING.md](docs/TESTING.md) | Testing strategy and commands |
 
-Each project page has a working demo, acceptance checklist, copy-paste Lovable prompt, and local progress notes.
+## CI/CD
 
-## Note on Pro offers
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | every push / PR | Lint, typecheck, build, agent tests |
+| `sandbox-test.yml` | push to `develop` | Integration build + test + artifact |
+| `deploy-dev.yml` | push to `develop` | Build → ECR → deploy to dev EC2 |
+| `deploy-prod.yml` | `v*.*.*` tag | Build → ECR → deploy to prod EC2 |
 
-Documented student pricing is **~50% off Pro for up to one year** after educational verification. Treat “free year Pro” / “discount for life” claims as unverified unless confirmed in your Lovable account.
+## Agent
+
+The [`cursor-rootv2/`](./cursor-rootv2/) CLI is a local safety supervisor with a constitutional AI pipeline, allowlisted agents, thought loops, harmonic memory, and sandbox testing. Run its test suite:
+
+```bash
+cd cursor-rootv2 && npm test   # 96 unit tests with vitest
+```
+
+## Scripts
+
+```bash
+bash scripts/setup-dev.sh       # one-command local setup
+bash scripts/build-all.sh       # build web + agent
+bash scripts/test-all.sh        # run all tests
+bash scripts/deploy-sandbox.sh  # local Docker sandbox
+```
+

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-typecheck-build:
+    name: Lint / Typecheck / Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Lint (oxlint)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc -b --noEmit
+
+      - name: Build web
+        run: npm run build
+
+  agent-tests:
+    name: Agent unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cursor-rootv2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: cursor-rootv2/package-lock.json
+
+      - name: Install agent dependencies
+        run: npm ci
+
+      - name: Typecheck agent
+        run: npm run typecheck
+
+      - name: Run agent tests
+        run: npm test

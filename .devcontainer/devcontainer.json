@@ -1,0 +1,33 @@
+{
+  "name": "rootagentv2",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-20-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/aws-cli:1": {}
+  },
+  "forwardPorts": [3000, 5173, 3001],
+  "portsAttributes": {
+    "3000": { "label": "Frontend (preview)" },
+    "5173": { "label": "Vite dev server" },
+    "3001": { "label": "Backend API" }
+  },
+  "postCreateCommand": "npm install && cd cursor-rootv2 && npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "amazonwebservices.aws-toolkit-vscode"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "typescript.preferences.importModuleSpecifier": "relative"
+      }
+    }
+  },
+  "remoteUser": "node"
+}

@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dist:/app/dist
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    volumes:
+      - ./cursor-rootv2:/app
+      - /app/node_modules
+    env_file:
+      - cursor-rootv2/.env
+    stdin_open: true
+    tty: true
