@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AmorphousController;
 use App\Http\Controllers\DecideController;
 use App\Http\Controllers\GwavController;
@@ -27,6 +28,15 @@ return [
     'GET /api/memory' => static fn (array $in) => (new MemoryController())->index((string) ($in['q'] ?? '')),
     'POST /api/amorphous/quote' => static fn (array $in) => (new AmorphousController())->quote($in),
     'POST /api/amorphous/spin' => static fn (array $in) => (new AmorphousController())->spin($in),
+    'GET /api/amorphous/environments' => static fn () => (new AmorphousController())->environments(),
+    'GET /api/amorphous/providers' => static fn () => (new AmorphousController())->providers(),
+    'GET /api/admin/overview' => static fn (array $in) => (new AdminController())->overview($in),
+    'POST /api/admin/cloud/connect' => static fn (array $in) => (new AdminController())->connectCloud($in),
+    'POST /api/admin/cloud/disconnect' => static fn (array $in) => (new AdminController())->disconnectCloud($in),
+    'POST /api/admin/environment/freeze' => static fn (array $in) => (new AdminController())->freezeEnvironment($in),
+    'POST /api/admin/environment/hibernate' => static fn (array $in) => (new AdminController())->hibernateEnvironment($in),
+    'POST /api/admin/environment/destroy' => static fn (array $in) => (new AdminController())->destroyEnvironment($in),
+    'POST /api/admin/pricing/preview' => static fn (array $in) => (new AdminController())->updatePricing($in),
     'POST /api/identity/enroll' => static fn (array $in) => (new IdentityController())->enroll($in),
     'POST /api/identity/resolve' => static fn (array $in) => (new IdentityController())->resolve($in),
     'GET /api/gwav' => static fn () => (new GwavController())->index(),

@@ -12,6 +12,9 @@ $input = json_decode((string) file_get_contents('php://input'), true);
 if (! is_array($input)) {
     $input = $_GET;
 }
+if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $input['Authorization'] = $_SERVER['HTTP_AUTHORIZATION'];
+}
 $routes = require __DIR__.'/../routes/api.php';
 $key = $method.' '.$path;
 

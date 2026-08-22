@@ -15,6 +15,7 @@ final class DeclarativeSpec
         public readonly string $traffic,
         public readonly array $dataStores,
         public readonly ?string $region = 'us-east-1',
+        public readonly string $provider = 'aws',
     ) {
     }
 
@@ -26,6 +27,7 @@ final class DeclarativeSpec
             (string) ($raw['traffic'] ?? 'low'),
             (array) ($raw['data_stores'] ?? ['sqlite']),
             isset($raw['region']) ? (string) $raw['region'] : 'us-east-1',
+            (string) ($raw['provider'] ?? 'aws'),
         );
     }
 }

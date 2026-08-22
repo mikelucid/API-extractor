@@ -1,3 +1,32 @@
+# Amorphous Adaptive — Web Host for AWS & Google Cloud
+
+**Declare once. Deploy everywhere.** Amorphous connects to AWS or Google Cloud, synthesises the right architecture per workload, and gives you a super admin panel for full control — with one-click free spin-ups and zero unnecessary forms.
+
+## Quick start
+
+```bash
+# Terminal 1 — API (PHP 8.2+)
+cd server && composer install && php -S localhost:8080 -t public
+
+# Terminal 2 — Frontend
+npm install && npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173)
+
+| Route | Purpose |
+|-------|---------|
+| `/` | Marketing landing |
+| `/spin` | One-click spin-up wizard (AWS or GCP) |
+| `/dashboard` | Your environments |
+| `/admin` | Super admin panel (token: `amorphous-super-admin-dev`) |
+
+**Pricing:** `monthly bill = cloud cost × 1.25`, $29 floor, free tier = 4h Spot TTL.
+
+CertForge certification lab routes moved to `/cert/*`.
+
+---
+
 # CertForge — Lovable AI Web Developer Certification Lab
 
 Interactive lab for completing **12 portfolio projects across 7 categories**, tracking progress, and preparing for:
