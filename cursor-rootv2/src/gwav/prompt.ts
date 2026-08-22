@@ -11,6 +11,8 @@ export interface GwavPromptOptions {
   dataDir?: string;
   /** When false, never spawn llama.cpp (tests). */
   allowLlama?: boolean;
+  /** Test hook: mock llama.cpp binary path. */
+  llamaBinOverride?: string;
 }
 
 export interface GwavPromptResult {
@@ -79,6 +81,7 @@ export function promptGwav(file: GwavFile, text: string, options: GwavPromptOpti
       userText: text,
       temperature,
       topP,
+      ...(options.llamaBinOverride ? { binOverride: options.llamaBinOverride } : {}),
     });
     if (llama.ok && llama.answer) {
       const answer = `[${file.header.node} @ ${file.header.carrierHz}Hz · llama2] ${llama.answer}`;

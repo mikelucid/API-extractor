@@ -9,6 +9,8 @@ export interface LlamaRunInput {
   topP?: number;
   maxTokens?: number;
   timeoutMs?: number;
+  /** Test hook: skip PATH lookup. */
+  binOverride?: string;
 }
 
 export interface LlamaRunResult {
@@ -31,7 +33,7 @@ export function resolveLlamaCppBin(): string | null {
   return null;
 }
 
-function buildPrompt(systemDirective: string, userText: string): string {
+export function buildPrompt(systemDirective: string, userText: string): string {
   return `${systemDirective.trim()}\n\nOwner: ${userText.trim()}\n\nAssistant:`;
 }
 
@@ -40,7 +42,7 @@ function buildPrompt(systemDirective: string, userText: string): string {
  * Returns ok:false when the binary is missing or the run fails — caller falls back to stub.
  */
 export function runLlamaCpp(input: LlamaRunInput): LlamaRunResult {
-  const bin = resolveLlamaCppBin();
+  const bin = input.binOverride ?? resolveLlamaCppBin();
   if (!bin) {
     return { ok: false, backend: "llama.cpp", reason: "llama.cpp binary not found (set LLAMA_CPP_BIN or install llama-cli)" };
   }
