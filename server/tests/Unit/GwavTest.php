@@ -70,4 +70,21 @@ final class GwavTest extends TestCase
         $this->assertTrue($res['extended']);
         $this->assertGreaterThan(0, $res['mean']['hitCount']);
     }
+
+    public function test_connect_llama2_sidecar(): void
+    {
+        $dir = $this->tmpDir();
+        mkdir($dir.'/gwav/models', 0777, true);
+        $gguf = $dir.'/gwav/models/llama2.gguf';
+        file_put_contents($gguf, Codec::stubGguf());
+        $vault = new Vault($dir);
+        $linked = $vault->connectGguf('llama2', $gguf);
+        $this->assertSame($gguf, $linked['sidecarGguf']);
+        $file = $vault->load('llama2');
+        $this->assertSame($gguf, $file['header']['sidecarGguf']);
+        $prompt = Prompt::run($file, 'diagnose local agent', 'local_diagnose', $dir);
+        $this->assertTrue($prompt['ok']);
+        $this->assertSame('stub', $prompt['backend']);
+        $this->assertSame($gguf, $prompt['ggufPath']);
+    }
 }
