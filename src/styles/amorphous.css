@@ -1,0 +1,382 @@
+.amorphous-root {
+  --amo-bg: #06080f;
+  --amo-bg2: #0c1019;
+  --amo-surface: rgba(255, 255, 255, 0.04);
+  --amo-border: rgba(255, 255, 255, 0.08);
+  --amo-text: #eef2ff;
+  --amo-muted: #94a3b8;
+  --amo-accent: #6366f1;
+  --amo-accent2: #22d3ee;
+  --amo-glow: rgba(99, 102, 241, 0.35);
+  --amo-success: #34d399;
+  --amo-warn: #fbbf24;
+  --amo-danger: #f87171;
+  --amo-aws: #ff9900;
+  --amo-gcp: #4285f4;
+  min-height: 100vh;
+  color: var(--amo-text);
+  background:
+    radial-gradient(900px 500px at 15% -5%, rgba(99, 102, 241, 0.18), transparent 60%),
+    radial-gradient(700px 400px at 90% 10%, rgba(34, 211, 238, 0.12), transparent 55%),
+    linear-gradient(180deg, var(--amo-bg), var(--amo-bg2));
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.amorphous-shell {
+  width: min(1180px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding-bottom: 4rem;
+}
+
+.amo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0;
+  gap: 1rem;
+}
+
+.amo-logo {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.amo-logo-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--amo-accent), var(--amo-accent2));
+  box-shadow: 0 0 24px var(--amo-glow);
+}
+
+.amo-nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.amo-nav a,
+.amo-btn {
+  border: 1px solid var(--amo-border);
+  background: var(--amo-surface);
+  color: var(--amo-text);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.amo-nav a:hover,
+.amo-btn:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.amo-btn-primary {
+  background: linear-gradient(135deg, var(--amo-accent), #4f46e5);
+  border-color: transparent;
+  box-shadow: 0 8px 30px var(--amo-glow);
+  font-weight: 600;
+}
+
+.amo-btn-primary:hover {
+  box-shadow: 0 12px 40px var(--amo-glow);
+}
+
+.amo-hero {
+  padding: 3rem 0 2rem;
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .amo-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+.amo-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--amo-border);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.amo-hero h1 {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1.02;
+  margin: 0 0 1rem;
+  letter-spacing: -0.04em;
+}
+
+.amo-hero h1 span {
+  background: linear-gradient(90deg, #fff, #a5b4fc 40%, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.amo-lead {
+  color: var(--amo-muted);
+  font-size: 1.15rem;
+  max-width: 42ch;
+  margin: 0 0 1.5rem;
+}
+
+.amo-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.amo-trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: var(--amo-muted);
+  font-size: 0.9rem;
+}
+
+.amo-trust strong {
+  color: var(--amo-text);
+}
+
+.amo-panel {
+  border: 1px solid var(--amo-border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 20px;
+  padding: 1.25rem;
+  backdrop-filter: blur(12px);
+}
+
+.amo-panel-glow {
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2), 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.amo-terminal {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+}
+
+.amo-terminal .prompt {
+  color: var(--amo-accent2);
+}
+
+.amo-terminal .ok {
+  color: var(--amo-success);
+}
+
+.amo-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 2.5rem 0;
+}
+
+@media (max-width: 800px) {
+  .amo-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.amo-card h3 {
+  font-family: 'Syne', system-ui, sans-serif;
+  margin: 0 0 0.5rem;
+}
+
+.amo-card p {
+  margin: 0;
+  color: var(--amo-muted);
+  font-size: 0.95rem;
+}
+
+.amo-pricing {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+@media (max-width: 700px) {
+  .amo-pricing {
+    grid-template-columns: 1fr;
+  }
+}
+
+.amo-price-tag {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: 2.5rem;
+  margin: 0.5rem 0;
+}
+
+.amo-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.amo-field label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--amo-muted);
+  margin-bottom: 0.35rem;
+}
+
+.amo-field input,
+.amo-field select,
+.amo-field textarea {
+  width: 100%;
+  border: 1px solid var(--amo-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--amo-text);
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+}
+
+.amo-provider-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.amo-provider-btn {
+  border: 1px solid var(--amo-border);
+  background: var(--amo-surface);
+  border-radius: 14px;
+  padding: 1rem;
+  cursor: pointer;
+  text-align: left;
+  color: var(--amo-text);
+}
+
+.amo-provider-btn.active-aws {
+  border-color: var(--amo-aws);
+  box-shadow: 0 0 0 1px rgba(255, 153, 0, 0.3);
+}
+
+.amo-provider-btn.active-gcp {
+  border-color: var(--amo-gcp);
+  box-shadow: 0 0 0 1px rgba(66, 133, 244, 0.3);
+}
+
+.amo-quote-box {
+  border: 1px dashed var(--amo-border);
+  border-radius: 14px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.amo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.amo-table th,
+.amo-table td {
+  text-align: left;
+  padding: 0.65rem 0.5rem;
+  border-bottom: 1px solid var(--amo-border);
+}
+
+.amo-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.amo-badge-live {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--amo-success);
+}
+
+.amo-badge-hibernated {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--amo-muted);
+}
+
+.amo-badge-frozen {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--amo-danger);
+}
+
+.amo-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .amo-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.amo-stat {
+  padding: 1rem;
+  border-radius: 14px;
+  border: 1px solid var(--amo-border);
+  background: var(--amo-surface);
+}
+
+.amo-stat-value {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: 1.75rem;
+}
+
+.amo-stat-label {
+  color: var(--amo-muted);
+  font-size: 0.85rem;
+}
+
+.amo-section-title {
+  font-family: 'Syne', system-ui, sans-serif;
+  font-size: 1.5rem;
+  margin: 2rem 0 1rem;
+}
+
+.amo-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--amo-border);
+  color: var(--amo-muted);
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.amo-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.amo-actions button {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.6rem;
+}

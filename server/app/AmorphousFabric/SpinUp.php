@@ -16,19 +16,27 @@ final class SpinUp
     public function spin(DeclarativeSpec $spec, array $plan, bool $paid = false): array
     {
         $ttl = $paid ? null : $this->freeTtlHours * 3600;
+        $id = bin2hex(random_bytes(8));
+        $provider = $plan['provider'] ?? 'aws';
+        $slug = substr($id, 0, 8);
 
         return [
+            'id' => $id,
+            'url' => "https://{$slug}.amorphous.dev",
             'status' => 'materialised',
             'paid' => $paid,
             'spot' => ! $paid,
+            'provider' => $provider,
             'ttl_seconds' => $ttl,
             'hibernates_after_ttl' => ! $paid,
             'credit_card_required' => $paid,
             'forms' => 0,
+            'created_at' => gmdate('c'),
             'plan' => $plan,
             'spec' => [
                 'language' => $spec->language,
                 'framework' => $spec->framework,
+                'provider' => $spec->provider,
             ],
         ];
     }

@@ -7,10 +7,15 @@ namespace App\AmorphousFabric;
 /**
  * Synthesises a unique right-sized AWS *plan*. Never calls live AWS APIs.
  */
-final class AwsSynthesizer
+final class AwsSynthesizer implements CloudProviderInterface
 {
     public function __construct(private readonly TemplateLibrary $templates = new TemplateLibrary())
     {
+    }
+
+    public function provider(): string
+    {
+        return 'aws';
     }
 
     public function synthesise(DeclarativeSpec $spec): array
@@ -33,10 +38,13 @@ final class AwsSynthesizer
 
         return [
             'live_aws' => false,
+            'live_cloud' => false,
+            'provider' => 'aws',
             'region' => $spec->region,
             'template' => $template,
             'mix' => $mix,
             'estimated_aws_usd' => $awsCost,
+            'estimated_cloud_usd' => $awsCost,
             'tags' => ['rootv2', 'amorphous', $spec->language],
         ];
     }

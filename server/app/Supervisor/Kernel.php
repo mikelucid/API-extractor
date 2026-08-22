@@ -10,10 +10,13 @@ use App\AgentQuery\InteractionLogger;
 use App\AgentQuery\QueryRouter;
 use App\AgentQuery\WireLogger;
 use App\AmorphousFabric\AwsSynthesizer;
+use App\AmorphousFabric\CloudAccountStore;
 use App\AmorphousFabric\CostGuard;
 use App\AmorphousFabric\DeclarativeSpec;
+use App\AmorphousFabric\EnvironmentStore;
 use App\AmorphousFabric\Pricing;
 use App\AmorphousFabric\SpinUp;
+use App\AmorphousFabric\SynthesizerFactory;
 use App\CognitiveFabric\CognitiveFabric;
 use App\CognitiveFabric\PlacementPolicy;
 use App\CognitiveFabric\Thought as FabricThought;
@@ -60,6 +63,8 @@ final class Kernel
         public readonly AwsSynthesizer $synthesizer,
         public readonly SpinUp $spinUp,
         public readonly CostGuard $costGuard,
+        public readonly EnvironmentStore $environments,
+        public readonly CloudAccountStore $cloudAccounts,
         public readonly string $dataDir,
     ) {
         $this->persona->assertValid();
@@ -110,6 +115,8 @@ final class Kernel
             new AwsSynthesizer(),
             new SpinUp((int) ($config['amorphous']['free_ttl_hours'] ?? 4)),
             new CostGuard(),
+            new EnvironmentStore($dir),
+            new CloudAccountStore($dir),
             $dir,
         );
     }
@@ -256,16 +263,38 @@ final class Kernel
         ];
     }
 
+    public function quote(array $spec): array
+    {
+        $decl = DeclarativeSpec::fromArray($spec);
+        $synthesizer = SynthesizerFactory::make($decl->provider);
+        $plan = $synthesizer->synthesise($decl);
+
+        return [
+            'ok' => true,
+            'plan' => $plan,
+            'quote' => $this->pricing->quote($plan['estimated_aws_usd']),
+        ];
+    }
+
     public function spin(array $spec, bool $paid = false): array
     {
         $decl = DeclarativeSpec::fromArray($spec);
-        $plan = $this->synthesizer->synthesise($decl);
+        $synthesizer = SynthesizerFactory::make($decl->provider);
+        $plan = $synthesizer->synthesise($decl);
         $guard = $this->costGuard->inspect($plan['estimated_aws_usd'], $plan['estimated_aws_usd']);
         if ($guard['frozen']) {
             return ['ok' => false, 'guard' => $guard];
         }
         $quote = $this->pricing->quote($plan['estimated_aws_usd']);
         $env = $this->spinUp->spin($decl, $plan, $paid);
+        $env['quote'] = $quote;
+        $this->environments->save($env);
+        $this->audit->append([
+            'kind' => 'amorphous_spin',
+            'environment_id' => $env['id'],
+            'provider' => $decl->provider,
+            'paid' => $paid,
+        ]);
 
         return ['ok' => true, 'quote' => $quote, 'environment' => $env];
     }
