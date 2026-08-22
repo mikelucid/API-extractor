@@ -48,7 +48,8 @@ Usage:
   cursor-rootv2 gwav-inspect <id>
   cursor-rootv2 gwav-search "<query>"     # fractal harmonic resonance across vault
   cursor-rootv2 gwav-resonate <id> "<q>"  # search + extend running mean on hit
-  cursor-rootv2 gwav-prompt <id> "<text>" # constitution-gated local stub (not llama.cpp)
+  cursor-rootv2 gwav-connect [id] [--gguf /path/to/llama2.gguf]
+  cursor-rootv2 gwav-prompt <id> "<text>" # llama.cpp when connected, else local stub
   cursor-rootv2 gwav-orbit --seed "<text>" [--steps 6]
   cursor-rootv2 gwav-export-ollama <id>
   cursor-rootv2 gwav-export-jsonl --seed "<text>" [--steps 6]
@@ -473,7 +474,15 @@ async function main(argv: string[]): Promise<void> {
       const id = rest[0];
       const text = rest.slice(1).join(" ").trim();
       if (!id || !text) usage();
-      console.log(JSON.stringify(promptGwav(new GwavVault(rootDir).load(id), text), null, 2));
+      console.log(JSON.stringify(promptGwav(new GwavVault(rootDir).load(id), text, { dataDir: rootDir }), null, 2));
+      return;
+    }
+    case "gwav-connect": {
+      const { GwavVault, DEFAULT_LLAMA2_ID } = await import("./gwav/index.js");
+      const id = rest.find((a) => !a.startsWith("--")) ?? DEFAULT_LLAMA2_ID;
+      const gguf = flagValue(rest, "--gguf");
+      const vault = new GwavVault(rootDir);
+      console.log(JSON.stringify(await vault.connectGguf(id, gguf ?? undefined), null, 2));
       return;
     }
     case "gwav-orbit": {

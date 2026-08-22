@@ -3,6 +3,8 @@ export * from "./waveform.js";
 export * from "./vram.js";
 export * from "./fractal.js";
 export * from "./resonance.js";
+export * from "./gguf-path.js";
+export * from "./llama-runner.js";
 export * from "./codec.js";
 export * from "./vault.js";
 export * from "./prompt.js";

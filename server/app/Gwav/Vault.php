@@ -134,6 +134,37 @@ final class Vault
         ];
     }
 
+    public function connectGguf(string $id, ?string $ggufPath = null): array
+    {
+        $resolved = $ggufPath && GgufPath::isValidGguf($ggufPath)
+            ? (realpath($ggufPath) ?: $ggufPath)
+            : GgufPath::findLlama2($this->rootDir);
+        if ($resolved === null) {
+            throw new \RuntimeException('No llama2.gguf found in gwav/models or --gguf path');
+        }
+        if (! is_file($this->pathFor($id))) {
+            $this->forge([
+                'id' => $id,
+                'name' => $id,
+                'node' => 'origin',
+                'systemDirective' => 'Local Llama 2 via .gwav sidecar: constitution-bound diagnose and owner-safe tasks only.',
+            ]);
+        }
+        $file = $this->load($id);
+        $hash = hash_file('sha256', $resolved);
+        $file['header']['sidecarGguf'] = $resolved;
+        $file['header']['ggufSha256'] = $hash;
+        $file['gguf'] = '';
+        file_put_contents($this->pathFor($id), Codec::reencode($file));
+
+        return [
+            'id' => $id,
+            'sidecarGguf' => $resolved,
+            'ggufSha256' => $hash,
+            'llamaCpp' => LlamaRunner::resolveBin(),
+        ];
+    }
+
     private function directive(string $node): string
     {
         return match ($node) {

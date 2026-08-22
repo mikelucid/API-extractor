@@ -31,7 +31,8 @@ npm run cli -- gwav-prompt ruby "diagnose local agent"
 npm run cli -- gwav-orbit --seed "diagnose local agent"
 npm run cli -- gwav-export-ollama origin
 npm run cli -- gwav-search "diagnose local agent"
-npm run cli -- gwav-resonate ruby "diagnose local agent"
+npm run cli -- gwav-connect llama2 --gguf ~/models/llama2.gguf
+npm run cli -- gwav-prompt llama2 "diagnose local agent"
 ```
 
 On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **user-domain** LaunchAgent under `~/Library/LaunchAgents` and data under `~/Library/Application Support/CursorRootv2/`.
@@ -44,7 +45,7 @@ On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **
 | Memory | `datasets/memory.jsonl` | Structured lessons / incident patterns (no secrets) |
 | Identity | `datasets/identity.vault.json` | AES-GCM sealed enrollments + friend ACL |
 | Policy | in-code defaults | Detector rules with confidence thresholds |
-| GWAV | `gwav/vault/*.gwav` | GGUF upgrade: WAV-like bin @ 1.4M bitrate, fractal semantics, harmonic mean (no duration) |
+| GWAV | `gwav/vault/*.gwav`, `gwav/models/llama2.gguf` | GGUF upgrade + optional llama.cpp sidecar (`gwav-connect llama2`) |
 
 Fixture seeds live in `src/datasets/fixtures.ts` for tests and rehearsal.
 

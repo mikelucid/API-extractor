@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { decodeGwav, encodeGwav, reencodeGwav, stubGgufBlob } from "./codec.js";
+import { findLlama2Gguf, isValidGgufFile, sha256File, gwavModelsDir } from "./gguf-path.js";
 import { resonateAndExtendMean, matchHarmonicResonance } from "./resonance.js";
 import type { GwavCard, GwavCarrierHz, GwavFile, GwavNodeId, GwavQuant } from "./types.js";
 import { GWAV_NODES } from "./types.js";
@@ -24,6 +25,7 @@ const NODE_DIRECTIVES: Record<GwavNodeId, string> = {
 export class GwavVault {
   constructor(private readonly rootDir: string) {
     mkdirSync(gwavVaultDir(rootDir), { recursive: true });
+    mkdirSync(gwavModelsDir(rootDir), { recursive: true });
   }
 
   pathFor(id: string): string {
@@ -129,5 +131,60 @@ export class GwavVault {
       writeFileSync(this.pathFor(id), reencodeGwav(file));
     }
     return { match, mean: { hitCount: mean.hitCount }, extended };
+  }
+
+  /**
+   * Connect a .gwav card to a local llama2.gguf sidecar (not embedded — multi-GB safe).
+   * Creates the llama2 card if missing. Accepts llama2.guff typo paths too.
+   */
+  async connectGguf(
+    id: string,
+    ggufPath?: string,
+  ): Promise<{ id: string; sidecarGguf: string; ggufSha256: string; llamaCpp: string | null }> {
+    const resolved =
+      ggufPath && isValidGgufFile(ggufPath)
+        ? resolve(ggufPath)
+        : ggufPath && isValidGgufFile(resolve(this.rootDir, ggufPath))
+          ? resolve(this.rootDir, ggufPath)
+          : findLlama2Gguf(this.rootDir);
+
+    if (!resolved) {
+      throw new Error(
+        `No llama2.gguf found. Place weights at ${join(gwavModelsDir(this.rootDir), "llama2.gguf")} or pass --gguf /path/to/llama2.gguf`,
+      );
+    }
+
+    let file: GwavFile;
+    if (existsSync(this.pathFor(id))) {
+      file = this.load(id);
+    } else {
+      file = this.forge({
+        id,
+        name: id,
+        node: "origin",
+        systemDirective: "Local Llama 2 via .gwav sidecar: constitution-bound diagnose and owner-safe tasks only.",
+        embedStubGguf: false,
+      });
+    }
+
+    const hash = await sha256File(resolved);
+    file = {
+      ...file,
+      header: {
+        ...file.header,
+        sidecarGguf: resolved,
+        ggufSha256: hash,
+      },
+      gguf: new Uint8Array(),
+    };
+    writeFileSync(this.pathFor(id), reencodeGwav(file));
+
+    const { resolveLlamaCppBin } = await import("./llama-runner.js");
+    return {
+      id,
+      sidecarGguf: resolved,
+      ggufSha256: hash,
+      llamaCpp: resolveLlamaCppBin(),
+    };
   }
 }

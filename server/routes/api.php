@@ -36,5 +36,6 @@ return [
     'POST /api/gwav/export-ollama' => static fn (array $in) => (new GwavController())->exportOllama($in),
     'POST /api/gwav/search' => static fn (array $in) => (new GwavController())->search($in),
     'POST /api/gwav/resonate' => static fn (array $in) => (new GwavController())->resonate($in),
+    'POST /api/gwav/connect' => static fn (array $in) => (new GwavController())->connect($in),
     'GET /api/legacy-status' => static fn () => (new StatusController())->show(),
 ];

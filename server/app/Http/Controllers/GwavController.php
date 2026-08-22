@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Gwav\GgufPath;
 use App\Gwav\Orbit;
 use App\Gwav\Prompt;
 use App\Gwav\Vault;
@@ -31,7 +32,7 @@ final class GwavController
         }
         $id = (string) ($input['id'] ?? 'ruby');
 
-        return Prompt::run($vault->load($id), (string) ($input['text'] ?? ''));
+        return Prompt::run($vault->load($id), (string) ($input['text'] ?? ''), 'local_diagnose', Kernel::boot()->dataDir);
     }
 
     public function orbit(array $input): array
@@ -75,5 +76,13 @@ final class GwavController
         }
 
         return $vault->resonate((string) ($input['id'] ?? 'ruby'), (string) ($input['q'] ?? ''));
+    }
+
+    public function connect(array $input): array
+    {
+        $vault = new Vault(Kernel::boot()->dataDir);
+        $id = (string) ($input['id'] ?? GgufPath::DEFAULT_LLAMA2_ID);
+
+        return $vault->connectGguf($id, isset($input['gguf']) ? (string) $input['gguf'] : null);
     }
 }

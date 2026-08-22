@@ -24,6 +24,7 @@ final class HttpRoutesTest extends TestCase
             'POST /api/gwav/export-ollama',
             'POST /api/gwav/search',
             'POST /api/gwav/resonate',
+            'POST /api/gwav/connect',
         ] as $key) {
             $this->assertArrayHasKey($key, $routes);
         }
