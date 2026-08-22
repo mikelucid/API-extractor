@@ -46,6 +46,8 @@ Usage:
   cursor-rootv2 gwav-seed                 # six orbital nodes + origin .gwav cards
   cursor-rootv2 gwav-list
   cursor-rootv2 gwav-inspect <id>
+  cursor-rootv2 gwav-search "<query>"     # fractal harmonic resonance across vault
+  cursor-rootv2 gwav-resonate <id> "<q>"  # search + extend running mean on hit
   cursor-rootv2 gwav-prompt <id> "<text>" # constitution-gated local stub (not llama.cpp)
   cursor-rootv2 gwav-orbit --seed "<text>" [--steps 6]
   cursor-rootv2 gwav-export-ollama <id>
@@ -415,15 +417,27 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case "gwav-inspect": {
-      const { GwavVault, estimateVramMb, toOllamaModelfile, chimePreview } = await import("./gwav/index.js");
+      const {
+        GwavVault,
+        estimateVramMb,
+        toOllamaModelfile,
+        chimePreview,
+        inspectGwavContainer,
+        GWAV_BITRATE,
+      } = await import("./gwav/index.js");
       const id = rest[0];
       if (!id) usage();
       const vault = new GwavVault(rootDir);
       const file = vault.load(id);
+      const raw = await import("node:fs").then((fs) => fs.readFileSync(vault.pathFor(id)));
+      const container = inspectGwavContainer(raw);
       console.log(
         JSON.stringify(
           {
             header: file.header,
+            container: { ...container, bitrateExpected: GWAV_BITRATE },
+            fractalTokens: file.fractal?.tokens.length ?? 0,
+            harmonicMean: { dims: file.mean?.dims, hitCount: file.mean?.hitCount },
             embeddedGgufBytes: file.gguf.byteLength,
             vramMb: estimateVramMb(file.header.paramsBillion, file.header.quantization),
             chime: chimePreview(file.header.carrierHz),
@@ -433,6 +447,25 @@ async function main(argv: string[]): Promise<void> {
           2,
         ),
       );
+      return;
+    }
+    case "gwav-search": {
+      const { GwavVault } = await import("./gwav/index.js");
+      const query = rest.join(" ").trim();
+      if (!query) usage();
+      const vault = new GwavVault(rootDir);
+      if (vault.list().length === 0) vault.seedOrbit();
+      console.log(JSON.stringify(vault.search(query), null, 2));
+      return;
+    }
+    case "gwav-resonate": {
+      const { GwavVault } = await import("./gwav/index.js");
+      const id = rest[0];
+      const query = rest.slice(1).join(" ").trim();
+      if (!id || !query) usage();
+      const vault = new GwavVault(rootDir);
+      if (vault.list().length === 0) vault.seedOrbit();
+      console.log(JSON.stringify(vault.resonate(id, query), null, 2));
       return;
     }
     case "gwav-prompt": {

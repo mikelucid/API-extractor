@@ -17,7 +17,7 @@ This is **not** a public multi-tenant SaaS, Legal CRM, torrent swarm, or kernel 
 | Chalcogenic alloys / nano-laser | `app/SealedVault/` | Ordinary OpenSSL AES-256-GCM at rest. **Not materials science or laser crypto** |
 | Upgrade brief (router / tools / fallback / thought / escalation) | `app/Router/`, `Tools/`, `Fallback/`, `Thought/`, `Escalation/` | Local rule router, stub tools, circuit breaker, plan–critique, owner gate |
 | Existing Rootv2 product | `app/Supervisor/` | Constitution, allowlist, contain, friend-gated identity, owner audit |
-| GGUF → `.gwav` | `app/Gwav/` | Local model stash: GGUF-parent cards, 432/528 Hz waveform fingerprint, orbital prompt loop (stub, no cloud) |
+| GGUF → `.gwav` | `app/Gwav/` | GGUF upgrade: WAV-like bin @ 1.4M bitrate, fractal semantic index, harmonic mean extension |
 
 Harmonic memory (resonance / dissonance) lives in `app/Harmony/` + `app/Memory/` so Morphic traces and Agent Query logs can share one recall graph.
 

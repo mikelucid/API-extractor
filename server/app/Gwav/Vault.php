@@ -98,6 +98,42 @@ final class Vault
         return $out;
     }
 
+    public function search(string $query): array
+    {
+        $results = [];
+        foreach ($this->list() as $row) {
+            $file = $this->load($row['id']);
+            $match = Resonance::match($file['fractal'], $query);
+            if ($match['score'] > 0) {
+                $results[] = [
+                    'id' => $row['id'],
+                    'score' => $match['score'],
+                    'harmonic' => $match['harmonic'],
+                    'hits' => count($match['hits']),
+                ];
+            }
+        }
+        usort($results, static fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        return $results;
+    }
+
+    public function resonate(string $id, string $query): array
+    {
+        $file = $this->load($id);
+        $out = Resonance::resonateFile($file, $query);
+        if ($out['extended']) {
+            $file['mean'] = $out['mean'];
+            file_put_contents($this->pathFor($id), Codec::reencode($file));
+        }
+
+        return [
+            'match' => $out['match'],
+            'mean' => ['hitCount' => $out['mean']['hitCount']],
+            'extended' => $out['extended'],
+        ];
+    }
+
     private function directive(string $node): string
     {
         return match ($node) {
