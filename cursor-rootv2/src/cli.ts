@@ -53,6 +53,7 @@ Usage:
   cursor-rootv2 gwav-orbit --seed "<text>" [--steps 6]
   cursor-rootv2 gwav-export-ollama <id>
   cursor-rootv2 gwav-export-jsonl --seed "<text>" [--steps 6]
+  cursor-rootv2 copyright-trace --input /abs/input.json [--output /abs/report.md] [--watch] [--interval-ms 2000] [--llm-metadata-url https://...]
 
   (alias) bored → rehearse   # institutional drills, slow by default
   note: think/muse/rehearse/decide auto-complete any incomplete thoughts first
@@ -536,6 +537,51 @@ async function main(argv: string[]): Promise<void> {
       });
       console.log(JSON.stringify({ id: record.id, displayName: record.fields.displayName }, null, 2));
       return;
+    }
+    case "copyright-trace": {
+      const inputPath = flagValue(rest, "--input");
+      if (!inputPath) usage();
+      const outputPath = flagValue(rest, "--output");
+      const watch = rest.includes("--watch");
+      const intervalMsRaw = Number(flagValue(rest, "--interval-ms") ?? "2000");
+      const intervalMs = Number.isFinite(intervalMsRaw) && intervalMsRaw >= 250 ? intervalMsRaw : 2000;
+      const llmMetadataUrl =
+        flagValue(rest, "--llm-metadata-url") ?? process.env.ROOTV2_LLM_METADATA_URL ?? undefined;
+      const llmModel = flagValue(rest, "--llm-model") ?? process.env.ROOTV2_LLM_METADATA_MODEL ?? undefined;
+      const {
+        loadTraceInput,
+        writeTraceReport,
+        buildCopyrightTraceReport,
+        inputMtimeMs,
+        enrichWithLlmMetadata,
+      } = await import("./forensics/copyright-tracing.js");
+
+      const emit = async () => {
+        let input = loadTraceInput(inputPath);
+        if (llmMetadataUrl) {
+          input = await enrichWithLlmMetadata(input, { endpoint: llmMetadataUrl, ...(llmModel ? { model: llmModel } : {}) });
+        }
+        const report = buildCopyrightTraceReport(input);
+        if (outputPath) {
+          writeTraceReport(outputPath, report);
+          console.log(`copyright trace report written: ${outputPath}`);
+        } else {
+          console.log(report);
+        }
+      };
+
+      await emit();
+      if (!watch) return;
+      let lastMtime = inputMtimeMs(inputPath);
+      console.log(`watching ${inputPath} every ${intervalMs}ms`);
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        const next = inputMtimeMs(inputPath);
+        if (next <= lastMtime) continue;
+        lastMtime = next;
+        await emit();
+      }
     }
     case "daemon": {
       console.log("agent daemon idle (watch loop is invoked via observe API / tests)");
