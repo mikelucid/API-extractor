@@ -26,3 +26,4 @@ export { THOUGHT_CHAIN, PIPELINES, pipelineChain } from "./thoughts/chain.js";
 export { ingestMemory, recallMemory } from "./memory/index.js";
 export { scoreHarmony } from "./harmony/index.js";
 export * from "./gwav/index.js";
+export * from "./forensics/index.js";

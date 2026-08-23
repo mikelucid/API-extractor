@@ -33,6 +33,9 @@ npm run cli -- gwav-export-ollama origin
 npm run cli -- gwav-search "diagnose local agent"
 npm run cli -- gwav-connect llama2 --gguf ~/models/llama2.gguf
 npm run cli -- gwav-prompt llama2 "diagnose local agent"
+npm run cli -- copyright-trace --input /abs/forensics.json --output /abs/copyright-report.md
+npm run cli -- copyright-trace --input /abs/forensics.json --output /abs/copyright-report.md --watch --llm-metadata-url https://llm.example/metadata
+npm run cli -- copyright-trace --input /abs/forensics.json --output /abs/copyright-report.md --watch --google-copyright-api-url https://google.example/copyright
 ```
 
 On macOS, `scripts/install-macos.sh` / `scripts/uninstall-macos.sh` install a **user-domain** LaunchAgent under `~/Library/LaunchAgents` and data under `~/Library/Application Support/CursorRootv2/`.
@@ -80,4 +83,3 @@ npm run cli -- tape --intent "diagnose local agent"
 npm run cli -- memory-add --kind incident --outcome success --detail "contained disallowed host"
 npm run cli -- memory-recall "disallowed host"
 ```
-
