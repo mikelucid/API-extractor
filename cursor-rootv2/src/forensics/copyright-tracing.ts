@@ -82,6 +82,29 @@ export interface LlmMetadataOptions {
   fetcher?: typeof fetch;
 }
 
+export interface GoogleCopyrightMatch {
+  assetType?: string;
+  timestamp?: string;
+  identifiedContent: string;
+  rightsOwner?: string;
+  registryContactId?: string;
+  isrc?: string;
+  iswc?: string;
+  licenseId?: string;
+  verificationMethod?: string;
+}
+
+export interface GoogleCopyrightApiResponse {
+  matches?: GoogleCopyrightMatch[];
+  registryRecords?: RegistryRecord[];
+}
+
+export interface GoogleCopyrightProbeOptions {
+  endpoint: string;
+  apiKey?: string;
+  fetcher?: typeof fetch;
+}
+
 interface ResolvedRow {
   assetType: string;
   timestamp: string;
@@ -119,6 +142,18 @@ function buildRegistryIndex(records: RegistryRecord[]): Map<string, RegistryReco
   return index;
 }
 
+function identifiersFromValues(
+  isrc?: string,
+  iswc?: string,
+  licenseId?: string,
+): TimelineAsset["identifiers"] | undefined {
+  const identifiers: NonNullable<TimelineAsset["identifiers"]> = {};
+  if (isrc) identifiers.isrc = isrc;
+  if (iswc) identifiers.iswc = iswc;
+  if (licenseId) identifiers.licenseId = licenseId;
+  return Object.keys(identifiers).length > 0 ? identifiers : undefined;
+}
+
 function toTimelineRows(input: CopyrightTraceInput): ResolvedRow[] {
   const registryIndex = buildRegistryIndex(input.registryRecords ?? []);
   const rows: ResolvedRow[] = [];
@@ -135,11 +170,10 @@ function toTimelineRows(input: CopyrightTraceInput): ResolvedRow[] {
   }
   for (const c2pa of input.mediaHeaders?.c2pa ?? []) {
     for (const asserted of c2pa.assertedAssets ?? []) {
-      const resolved = resolveRegistry(registryIndex, {
-        isrc: asserted.isrc,
-        iswc: asserted.iswc,
-        licenseId: asserted.licenseId,
-      });
+      const resolved = resolveRegistry(
+        registryIndex,
+        identifiersFromValues(asserted.isrc, asserted.iswc, asserted.licenseId),
+      );
       rows.push({
         assetType: asserted.assetType ?? "C2PA asserted asset",
         timestamp: asserted.timestamp ?? "Unknown",
@@ -202,6 +236,7 @@ function historicalDiscrepancies(input: CopyrightTraceInput): string[] {
     const titles = new Set(changes.map((entry) => entry.title?.trim()).filter(Boolean));
     if (owners.size > 1 || isrcs.size > 1 || titles.size > 1) {
       const latest = changes[changes.length - 1];
+      if (!latest) continue;
       notes.push(
         `${trackKey}: detected catalog drift across ${changes.length} snapshot(s); latest at ${latest.archivedAt} lists owner=${
           latest.rightsOwner ?? "unknown"
@@ -314,11 +349,64 @@ export async function enrichWithLlmMetadata(
   }
 
   const data = (await response.json()) as LlmMetadataResponse;
-  return {
+  const enriched: CopyrightTraceInput = {
     timelineAssets: [...(input.timelineAssets ?? []), ...(data.timelineAssets ?? [])],
     registryRecords: [...(input.registryRecords ?? []), ...(data.registryRecords ?? [])],
-    mediaHeaders: input.mediaHeaders,
     archiveRevisions: [...(input.archiveRevisions ?? []), ...(data.archiveRevisions ?? [])],
-    telemetrySignals: input.telemetrySignals,
   };
+  if (input.mediaHeaders) enriched.mediaHeaders = input.mediaHeaders;
+  if (input.telemetrySignals) enriched.telemetrySignals = input.telemetrySignals;
+  return enriched;
+}
+
+export async function enrichWithGoogleCopyrightApi(
+  input: CopyrightTraceInput,
+  options: GoogleCopyrightProbeOptions,
+): Promise<CopyrightTraceInput> {
+  const fetcher = options.fetcher ?? fetch;
+  const unresolved = (input.timelineAssets ?? []).map((asset) => ({
+    timestamp: asset.timestamp,
+    identifiedContent: asset.identifiedContent,
+    isrc: asset.identifiers?.isrc,
+    iswc: asset.identifiers?.iswc,
+    licenseId: asset.identifiers?.licenseId,
+  }));
+
+  const endpoint = options.apiKey
+    ? `${options.endpoint}${options.endpoint.includes("?") ? "&" : "?"}key=${encodeURIComponent(options.apiKey)}`
+    : options.endpoint;
+  const response = await fetcher(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      assets: unresolved,
+      archiveRevisions: input.archiveRevisions ?? [],
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Google copyright API probe failed: ${response.status} ${response.statusText}`);
+  }
+  const data = (await response.json()) as GoogleCopyrightApiResponse;
+  const enrichedTimeline: TimelineAsset[] = (data.matches ?? []).map((match) => {
+    const identifiers = identifiersFromValues(match.isrc, match.iswc, match.licenseId);
+    const asset: TimelineAsset = {
+      assetType: match.assetType ?? "copyright match",
+      timestamp: match.timestamp ?? "Unknown",
+      identifiedContent: match.identifiedContent,
+      verificationHint: match.verificationMethod ?? "Google copyright API match",
+    };
+    if (match.rightsOwner) asset.rightsOwner = match.rightsOwner;
+    if (match.registryContactId) asset.registryId = match.registryContactId;
+    if (identifiers) asset.identifiers = identifiers;
+    return asset;
+  });
+
+  const enriched: CopyrightTraceInput = {
+    timelineAssets: [...(input.timelineAssets ?? []), ...enrichedTimeline],
+    registryRecords: [...(input.registryRecords ?? []), ...(data.registryRecords ?? [])],
+  };
+  if (input.archiveRevisions) enriched.archiveRevisions = input.archiveRevisions;
+  if (input.mediaHeaders) enriched.mediaHeaders = input.mediaHeaders;
+  if (input.telemetrySignals) enriched.telemetrySignals = input.telemetrySignals;
+  return enriched;
 }

@@ -53,7 +53,7 @@ Usage:
   cursor-rootv2 gwav-orbit --seed "<text>" [--steps 6]
   cursor-rootv2 gwav-export-ollama <id>
   cursor-rootv2 gwav-export-jsonl --seed "<text>" [--steps 6]
-  cursor-rootv2 copyright-trace --input /abs/input.json [--output /abs/report.md] [--watch] [--interval-ms 2000] [--llm-metadata-url https://...]
+  cursor-rootv2 copyright-trace --input /abs/input.json [--output /abs/report.md] [--watch] [--interval-ms 2000] [--llm-metadata-url https://...] [--google-copyright-api-url https://...]
 
   (alias) bored → rehearse   # institutional drills, slow by default
   note: think/muse/rehearse/decide auto-complete any incomplete thoughts first
@@ -548,18 +548,30 @@ async function main(argv: string[]): Promise<void> {
       const llmMetadataUrl =
         flagValue(rest, "--llm-metadata-url") ?? process.env.ROOTV2_LLM_METADATA_URL ?? undefined;
       const llmModel = flagValue(rest, "--llm-model") ?? process.env.ROOTV2_LLM_METADATA_MODEL ?? undefined;
+      const googleApiUrl =
+        flagValue(rest, "--google-copyright-api-url") ??
+        process.env.ROOTV2_GOOGLE_COPYRIGHT_API_URL ??
+        undefined;
+      const googleApiKey = flagValue(rest, "--google-api-key") ?? process.env.ROOTV2_GOOGLE_COPYRIGHT_API_KEY;
       const {
         loadTraceInput,
         writeTraceReport,
         buildCopyrightTraceReport,
         inputMtimeMs,
         enrichWithLlmMetadata,
+        enrichWithGoogleCopyrightApi,
       } = await import("./forensics/copyright-tracing.js");
 
       const emit = async () => {
         let input = loadTraceInput(inputPath);
         if (llmMetadataUrl) {
           input = await enrichWithLlmMetadata(input, { endpoint: llmMetadataUrl, ...(llmModel ? { model: llmModel } : {}) });
+        }
+        if (googleApiUrl) {
+          input = await enrichWithGoogleCopyrightApi(input, {
+            endpoint: googleApiUrl,
+            ...(googleApiKey ? { apiKey: googleApiKey } : {}),
+          });
         }
         const report = buildCopyrightTraceReport(input);
         if (outputPath) {

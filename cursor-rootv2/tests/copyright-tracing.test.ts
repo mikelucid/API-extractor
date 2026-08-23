@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCopyrightTraceReport,
   enrichWithLlmMetadata,
+  enrichWithGoogleCopyrightApi,
   type CopyrightTraceInput,
 } from "../src/forensics/copyright-tracing.js";
 
@@ -110,5 +111,51 @@ describe("copyright tracing", () => {
 
     expect(enriched.timelineAssets).toHaveLength(2);
     expect(enriched.timelineAssets?.[1]?.rightsOwner).toBe("LLM Resolved Owner");
+  });
+
+  it("probes google copyright api and merges matches", async () => {
+    const base: CopyrightTraceInput = {
+      timelineAssets: [
+        {
+          assetType: "loop",
+          timestamp: "00:00:09.250",
+          identifiedContent: "Vocal phrase",
+        },
+      ],
+    };
+
+    const enriched = await enrichWithGoogleCopyrightApi(base, {
+      endpoint: "https://google.example/copyright",
+      fetcher: async (_url, init) => {
+        expect(init?.method).toBe("POST");
+        return new Response(
+          JSON.stringify({
+            matches: [
+              {
+                assetType: "vocal sample",
+                timestamp: "00:00:09.250",
+                identifiedContent: "Vocal phrase",
+                rightsOwner: "Google Match Holder",
+                registryContactId: "PRS:1122",
+                isrc: "GB-AAA-26-12345",
+              },
+            ],
+            registryRecords: [
+              {
+                type: "ISRC",
+                id: "GB-AAA-26-12345",
+                rightsOwner: "Google Match Holder",
+                registryContactId: "PRS:1122",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    });
+
+    expect(enriched.timelineAssets).toHaveLength(2);
+    expect(enriched.registryRecords).toHaveLength(1);
+    expect(enriched.timelineAssets?.[1]?.verificationHint).toContain("Google copyright API");
   });
 });
