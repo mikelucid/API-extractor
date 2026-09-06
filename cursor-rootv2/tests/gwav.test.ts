@@ -1,6 +1,6 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   decodeGwav,
@@ -18,6 +18,8 @@ import {
   waveformFingerprint,
   orbitToJsonl,
   buildFractalIndex,
+  decodeMeanChunk,
+  encodeFractalChunk,
 } from "../src/gwav/index.js";
 
 function tmp(): string {
@@ -75,6 +77,15 @@ describe("gwav codec", () => {
     expect(() => decodeGwav(tampered)).toThrow();
   });
 
+  it("rejects invalid containers before inspecting header fields", () => {
+    expect(() => inspectGwavContainer(Buffer.from("GGUF"))).toThrow(/too short/);
+    expect(() => inspectGwavContainer(Buffer.from("NOPE........"))).toThrow(/magic/);
+    const truncatedV2 = Buffer.alloc(12);
+    truncatedV2.write("GWAV", 0, "ascii");
+    truncatedV2.writeUInt32LE(GWAV_VERSION, 4);
+    expect(() => inspectGwavContainer(truncatedV2)).toThrow(/Truncated \.gwav v2 header/);
+  });
+
   it("432 Hz and 528 Hz fingerprints differ", () => {
     const base = {
       id: "n",
@@ -97,6 +108,29 @@ describe("gwav codec", () => {
 });
 
 describe("gwav fractal resonance", () => {
+  it("rejects oversized fractal strings and invalid mean dimensions", () => {
+    const base = { carrierHz: 432 as const, bitrate: GWAV_BITRATE, tokens: [] };
+    expect(() =>
+      encodeFractalChunk({
+        ...base,
+        tokens: [{ field: "f".repeat(256), token: "ok", scales: [] }],
+      }),
+    ).toThrow(/field exceeds 255 UTF-8 bytes/);
+    expect(() =>
+      encodeFractalChunk({
+        ...base,
+        tokens: [{ field: "id", token: "é".repeat(128), scales: [] }],
+      }),
+    ).toThrow(/token exceeds 255 UTF-8 bytes/);
+
+    const truncatedMean = Buffer.alloc(16);
+    truncatedMean.writeUInt32LE(2, 0);
+    expect(() => decodeMeanChunk(truncatedMean)).toThrow(/Truncated harmonic mean chunk/);
+    const mismatchedMean = Buffer.alloc(9);
+    mismatchedMean.writeUInt32LE(0, 0);
+    expect(() => decodeMeanChunk(mismatchedMean)).toThrow(/Corrupt harmonic mean chunk length/);
+  });
+
   it("finds harmonic matches and extends the mean on resonate", () => {
     const vault = new GwavVault(tmp());
     vault.forge({ id: "ruby", node: "ruby", systemDirective: "local diagnose agent session" });
@@ -127,6 +161,9 @@ describe("gwav fractal resonance", () => {
     expect(after.mean!.hitCount).toBe(out.mean.hitCount);
     const container = inspectGwavContainer(readFileSync(vault.pathFor("ruby")));
     expect(container.version).toBe(GWAV_VERSION);
+    expect(readdirSync(dirname(vault.pathFor("ruby")))).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/\.tmp$|\.lock$/)]),
+    );
   });
 });
 

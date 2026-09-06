@@ -1,4 +1,14 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { decodeGwav, encodeGwav, reencodeGwav, stubGgufBlob } from "./codec.js";
 import { findLlama2Gguf, isValidGgufFile, sha256File, gwavModelsDir } from "./gguf-path.js";
@@ -10,6 +20,39 @@ import { waveformFingerprint } from "./waveform.js";
 
 export function gwavVaultDir(rootDir: string): string {
   return join(rootDir, "gwav", "vault");
+}
+
+function replaceAtomically(path: string, contents: Buffer): void {
+  const tempPath = `${path}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    writeFileSync(tempPath, contents, { flag: "wx" });
+    renameSync(tempPath, path);
+  } finally {
+    if (existsSync(tempPath)) unlinkSync(tempPath);
+  }
+}
+
+function withExclusiveCardLock<T>(path: string, operation: () => T): T {
+  const lockPath = `${path}.lock`;
+  const deadline = Date.now() + 10_000;
+  let descriptor: number;
+  while (true) {
+    try {
+      descriptor = openSync(lockPath, "wx", 0o600);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || Date.now() >= deadline) {
+        throw error;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  try {
+    return operation();
+  } finally {
+    closeSync(descriptor);
+    unlinkSync(lockPath);
+  }
 }
 
 const NODE_DIRECTIVES: Record<GwavNodeId, string> = {
@@ -124,13 +167,16 @@ export class GwavVault {
     mean: { hitCount: number };
     extended: boolean;
   } {
-    let file = this.load(id);
-    const { match, mean, extended } = resonateAndExtendMean(file, query);
-    if (extended) {
-      file = { ...file, mean };
-      writeFileSync(this.pathFor(id), reencodeGwav(file));
-    }
-    return { match, mean: { hitCount: mean.hitCount }, extended };
+    const path = this.pathFor(id);
+    return withExclusiveCardLock(path, () => {
+      let file = this.load(id);
+      const { match, mean, extended } = resonateAndExtendMean(file, query);
+      if (extended) {
+        file = { ...file, mean };
+        replaceAtomically(path, reencodeGwav(file));
+      }
+      return { match, mean: { hitCount: mean.hitCount }, extended };
+    });
   }
 
   /**

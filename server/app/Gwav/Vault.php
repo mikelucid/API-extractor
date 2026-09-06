@@ -23,6 +23,10 @@ final class Vault
 
     public function pathFor(string $id): string
     {
+        if ($id === '' || preg_match('/\A[A-Za-z0-9_-]+\z/D', $id) !== 1) {
+            throw new \InvalidArgumentException('Invalid .gwav card identifier.');
+        }
+
         return $this->dir().'/'.$id.'.gwav';
     }
 
@@ -120,11 +124,24 @@ final class Vault
 
     public function resonate(string $id, string $query): array
     {
-        $file = $this->load($id);
-        $out = Resonance::resonateFile($file, $query);
-        if ($out['extended']) {
-            $file['mean'] = $out['mean'];
-            file_put_contents($this->pathFor($id), Codec::reencode($file));
+        $path = $this->pathFor($id);
+        $lock = fopen($path.'.lock', 'c');
+        if ($lock === false) {
+            throw new \RuntimeException('Unable to open .gwav card lock.');
+        }
+        try {
+            if (! flock($lock, LOCK_EX)) {
+                throw new \RuntimeException('Unable to lock .gwav card.');
+            }
+            $file = $this->load($id);
+            $out = Resonance::resonateFile($file, $query);
+            if ($out['extended']) {
+                $file['mean'] = $out['mean'];
+                $this->replaceAtomically($path, Codec::reencode($file));
+            }
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
         }
 
         return [
@@ -132,6 +149,26 @@ final class Vault
             'mean' => ['hitCount' => $out['mean']['hitCount']],
             'extended' => $out['extended'],
         ];
+    }
+
+    private function replaceAtomically(string $path, string $contents): void
+    {
+        $temp = tempnam(dirname($path), basename($path).'.tmp-');
+        if ($temp === false) {
+            throw new \RuntimeException('Unable to create temporary .gwav card.');
+        }
+        try {
+            if (file_put_contents($temp, $contents) !== strlen($contents)) {
+                throw new \RuntimeException('Unable to write temporary .gwav card.');
+            }
+            if (! rename($temp, $path)) {
+                throw new \RuntimeException('Unable to replace .gwav card.');
+            }
+        } finally {
+            if (is_file($temp)) {
+                unlink($temp);
+            }
+        }
     }
 
     public function connectGguf(string $id, ?string $ggufPath = null): array

@@ -90,6 +90,12 @@ final class Fractal
         foreach ($fractal['tokens'] as $entry) {
             $field = $entry['field'];
             $token = $entry['token'];
+            if (strlen($field) > 0xff) {
+                throw new \InvalidArgumentException('Fractal field exceeds 255 UTF-8 bytes.');
+            }
+            if (strlen($token) > 0xff) {
+                throw new \InvalidArgumentException('Fractal token exceeds 255 UTF-8 bytes.');
+            }
             $out .= chr(strlen($field)).$field.chr(strlen($token)).$token.chr(count($entry['scales']));
             foreach ($entry['scales'] as $s) {
                 $out .= chr($s['scale']).pack('d', $s['phase']).pack('d', $s['amplitude']);
@@ -101,22 +107,44 @@ final class Fractal
 
     public static function decodeChunk(string $buf, int $carrierHz): array
     {
+        $length = strlen($buf);
+        if ($length < 4) {
+            throw new \InvalidArgumentException('Truncated fractal chunk.');
+        }
         $count = unpack('V', substr($buf, 0, 4))[1];
         $offset = 4;
         $tokens = [];
         for ($n = 0; $n < $count; $n++) {
+            if ($offset >= $length) {
+                throw new \InvalidArgumentException('Truncated fractal token field length.');
+            }
             $fieldLen = ord($buf[$offset]);
             $offset++;
+            if ($fieldLen > $length - $offset) {
+                throw new \InvalidArgumentException('Truncated fractal token field.');
+            }
             $field = substr($buf, $offset, $fieldLen);
             $offset += $fieldLen;
+            if ($offset >= $length) {
+                throw new \InvalidArgumentException('Truncated fractal token length.');
+            }
             $tokenLen = ord($buf[$offset]);
             $offset++;
+            if ($tokenLen > $length - $offset) {
+                throw new \InvalidArgumentException('Truncated fractal token data.');
+            }
             $token = substr($buf, $offset, $tokenLen);
             $offset += $tokenLen;
+            if ($offset >= $length) {
+                throw new \InvalidArgumentException('Truncated fractal scale count.');
+            }
             $scaleCount = ord($buf[$offset]);
             $offset++;
             $scales = [];
             for ($s = 0; $s < $scaleCount; $s++) {
+                if (17 > $length - $offset) {
+                    throw new \InvalidArgumentException('Truncated fractal scale.');
+                }
                 $scale = ord($buf[$offset]);
                 $phase = unpack('d', substr($buf, $offset + 1, 8))[1];
                 $amp = unpack('d', substr($buf, $offset + 9, 8))[1];
@@ -141,8 +169,19 @@ final class Fractal
 
     public static function decodeMean(string $buf): array
     {
+        $length = strlen($buf);
+        if ($length < 8) {
+            throw new \InvalidArgumentException('Truncated harmonic mean chunk.');
+        }
         $dims = unpack('V', substr($buf, 0, 4))[1];
         $hitCount = unpack('V', substr($buf, 4, 4))[1];
+        $expectedLength = 8 + $dims * 8;
+        if ($length < $expectedLength) {
+            throw new \InvalidArgumentException('Truncated harmonic mean chunk.');
+        }
+        if ($length !== $expectedLength) {
+            throw new \InvalidArgumentException('Corrupt harmonic mean chunk length.');
+        }
         $vector = [];
         for ($i = 0; $i < $dims; $i++) {
             $vector[] = unpack('d', substr($buf, 8 + $i * 8, 8))[1];

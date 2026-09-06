@@ -46,7 +46,7 @@ final class Codec
 
     public static function reencode(array $file): string
     {
-        $header = $file['header'] + ['version' => self::VERSION, 'bitrate' => self::BITRATE, 'sampleCount' => 0];
+        $header = array_replace($file['header'], ['version' => self::VERSION, 'bitrate' => self::BITRATE, 'sampleCount' => 0]);
         $fractal = $file['fractal'] ?? Fractal::build($header);
         $mean = $file['mean'] ?? Fractal::initialMean($fractal);
 
@@ -77,6 +77,9 @@ final class Codec
         }
         if ($version !== self::VERSION) {
             throw new \InvalidArgumentException('Unsupported .gwav version.');
+        }
+        if (strlen($buf) < 24) {
+            throw new \InvalidArgumentException('Truncated .gwav v2 header.');
         }
 
         return self::decodeV2($buf);
@@ -147,10 +150,14 @@ final class Codec
     {
         $chunks = [];
         $offset = 0;
-        while ($offset + 8 <= strlen($buf)) {
+        $length = strlen($buf);
+        while ($offset + 8 <= $length) {
             $id = substr($buf, $offset, 4);
             $size = unpack('V', substr($buf, $offset + 4, 4))[1];
             $offset += 8;
+            if ($size > $length - $offset) {
+                throw new \InvalidArgumentException('Truncated .gwav chunk.');
+            }
             $chunks[$id] = substr($buf, $offset, $size);
             $offset += $size;
         }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Gwav\Codec;
+use App\Gwav\Fractal;
 use App\Gwav\Orbit;
 use App\Gwav\Prompt;
 use App\Gwav\Vault;
@@ -86,5 +87,114 @@ final class GwavTest extends TestCase
         $this->assertTrue($prompt['ok']);
         $this->assertSame('stub', $prompt['backend']);
         $this->assertSame($gguf, $prompt['ggufPath']);
+    }
+
+    public function test_rejects_truncated_binary_fields(): void
+    {
+        try {
+            Codec::decode('GWAV'.pack('V', Codec::VERSION).str_repeat("\0", 4));
+            $this->fail('Expected a truncated v2 header to be rejected.');
+        } catch (\InvalidArgumentException $error) {
+            $this->assertStringContainsString('Truncated .gwav v2 header', $error->getMessage());
+        }
+
+        $truncatedChunk = 'GWAV'
+            .pack('V', Codec::VERSION)
+            .pack('V', 1)
+            .pack('V', Codec::BITRATE)
+            .pack('V', 432)
+            .pack('V', 0)
+            .'meta'.pack('V', 10).'x';
+        try {
+            Codec::decode($truncatedChunk);
+            $this->fail('Expected a truncated chunk to be rejected.');
+        } catch (\InvalidArgumentException $error) {
+            $this->assertStringContainsString('Truncated .gwav chunk', $error->getMessage());
+        }
+
+        foreach (["", pack('V', 1)."\x02x"] as $chunk) {
+            try {
+                Fractal::decodeChunk($chunk, 432);
+                $this->fail('Expected a truncated fractal chunk to be rejected.');
+            } catch (\InvalidArgumentException $error) {
+                $this->assertStringContainsString('Truncated fractal', $error->getMessage());
+            }
+        }
+
+        $mean = pack('VV', 2, 0).pack('d', 1.0);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Truncated harmonic mean chunk');
+        Fractal::decodeMean($mean);
+    }
+
+    public function test_rejects_oversized_fractal_strings(): void
+    {
+        $fractal = [
+            'tokens' => [[
+                'field' => str_repeat('f', 256),
+                'token' => 'ok',
+                'scales' => [],
+            ]],
+        ];
+        try {
+            Fractal::encodeChunk($fractal);
+            $this->fail('Expected an oversized fractal field to be rejected.');
+        } catch (\InvalidArgumentException $error) {
+            $this->assertStringContainsString('field exceeds 255 UTF-8 bytes', $error->getMessage());
+        }
+
+        $fractal['tokens'][0]['field'] = 'id';
+        $fractal['tokens'][0]['token'] = str_repeat('é', 128);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('token exceeds 255 UTF-8 bytes');
+        Fractal::encodeChunk($fractal);
+    }
+
+    public function test_resonating_a_v1_card_persists_v2_metadata(): void
+    {
+        $dir = $this->tmpDir();
+        $vault = new Vault($dir);
+        $card = [
+            'id' => 'legacy',
+            'name' => 'Legacy',
+            'node' => 'ruby',
+            'quantization' => 'Q4_K_M',
+            'carrierHz' => 432,
+            'paramsBillion' => 7,
+            'systemDirective' => 'local diagnose agent session',
+            'constitutionBound' => true,
+            'parentFormat' => 'gguf',
+        ];
+        $header = $card + [
+            'format' => 'gwav',
+            'version' => Codec::VERSION_V1,
+            'bitrate' => 123,
+            'sampleCount' => 99,
+            'waveformFingerprint' => Waveform::fingerprint($card),
+        ];
+        $json = json_encode($header, JSON_THROW_ON_ERROR);
+        file_put_contents($vault->pathFor('legacy'), 'GWAV'.pack('V', Codec::VERSION_V1).pack('V', strlen($json)).$json);
+
+        $result = $vault->resonate('legacy', 'diagnose local agent');
+        $this->assertTrue($result['extended']);
+        $reloaded = $vault->load('legacy');
+        $this->assertSame(Codec::VERSION, $reloaded['header']['version']);
+        $this->assertSame(Codec::BITRATE, $reloaded['header']['bitrate']);
+        $this->assertSame(0, $reloaded['header']['sampleCount']);
+        $this->assertSame([], glob($vault->dir().'/*.tmp-*') ?: []);
+    }
+
+    public function test_vault_rejects_invalid_identifiers(): void
+    {
+        $vault = new Vault($this->tmpDir());
+        foreach (['', '../ruby', 'ruby/gwav', 'ruby.gwav', "ruby\nother"] as $id) {
+            try {
+                $vault->pathFor($id);
+                $this->fail('Expected invalid card identifier to be rejected.');
+            } catch (\InvalidArgumentException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+        $this->assertStringEndsWith('/ruby-1_ok.gwav', $vault->pathFor('ruby-1_ok'));
     }
 }
