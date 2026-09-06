@@ -236,9 +236,22 @@ export function inspectGwavContainer(buf: Uint8Array): {
   chunkIds: string[];
 } {
   const b = Buffer.from(buf);
+  if (b.length < 12) {
+    throw new Error("Not a .gwav file (too short).");
+  }
+  const magic = b.subarray(0, 4).toString("ascii");
+  if (magic !== GWAV_MAGIC) {
+    throw new Error(`Not a .gwav file (magic ${magic}).`);
+  }
   const version = b.readUInt32LE(4);
   if (version === GWAV_VERSION_V1) {
     return { version, bitrate: GWAV_BITRATE, sampleCount: 0, chunkIds: ["meta", "gguf"] };
+  }
+  if (version !== GWAV_VERSION) {
+    throw new Error(`Unsupported .gwav version ${version}.`);
+  }
+  if (b.length < 24) {
+    throw new Error("Truncated .gwav v2 header.");
   }
   const chunks = parseChunks(b, 24);
   return {

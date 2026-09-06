@@ -88,6 +88,12 @@ export function encodeFractalChunk(fractal: FractalIndex): Buffer {
   for (const entry of fractal.tokens) {
     const fieldBuf = Buffer.from(entry.field, "utf8");
     const tokenBuf = Buffer.from(entry.token, "utf8");
+    if (fieldBuf.length > 0xff) {
+      throw new Error("Fractal field exceeds 255 UTF-8 bytes.");
+    }
+    if (tokenBuf.length > 0xff) {
+      throw new Error("Fractal token exceeds 255 UTF-8 bytes.");
+    }
     const head = Buffer.alloc(1 + fieldBuf.length + 1 + tokenBuf.length + 1);
     let o = 0;
     head.writeUInt8(fieldBuf.length, o);
@@ -159,8 +165,18 @@ export function encodeMeanChunk(mean: HarmonicMean): Buffer {
 
 export function decodeMeanChunk(buf: Uint8Array): HarmonicMean {
   const b = Buffer.from(buf);
+  if (b.length < 8) {
+    throw new Error("Truncated harmonic mean chunk.");
+  }
   const dims = b.readUInt32LE(0);
   const hitCount = b.readUInt32LE(4);
+  const expectedLength = 8 + dims * 8;
+  if (b.length < expectedLength) {
+    throw new Error("Truncated harmonic mean chunk.");
+  }
+  if (b.length !== expectedLength) {
+    throw new Error("Corrupt harmonic mean chunk length.");
+  }
   const vector = new Float64Array(dims);
   for (let i = 0; i < dims; i++) {
     vector[i] = b.readDoubleLE(8 + i * 8);
